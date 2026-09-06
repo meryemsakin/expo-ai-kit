@@ -1,7 +1,7 @@
 # expo-ai-kit
 
-> On-device AI for Expo and React Native. Capabilities: LLM (chat, structured output,
-> tool calling), Speech (speech-to-text), Vision (background removal, image labels, OCR), and
+> On-device AI for Expo and React Native. Capabilities: LLM (chat, typed JSON output,
+> tool calling for on-device agents), Speech (speech-to-text), Vision (background removal, image labels, OCR), and
 > Embeddings (semantic search, retrieval). Runs locally on iOS and Android on Apple Foundation
 > Models, Apple Vision, Apple SpeechAnalyzer, Apple NLContextualEmbedding, ML Kit (Prompt API,
 > GenAI Speech Recognition, Vision), EmbeddingGemma, and downloadable/custom LiteRT-LM models
@@ -26,7 +26,7 @@ import {
 
 - Chat / generate / stream text → `sendMessage`, `streamMessage` (after `isAvailable` + `prepareBuiltInModel`).
 - Need a typed object from the model → `generateObject(messages, jsonSchema)`.
-- Let the model call app functions → `generateText(messages, { tools })`.
+- Let the model call app functions (bounded agent loop, `maxSteps`) → `generateText(messages, { tools })`.
 - Voice → text, live → `streamTranscription`; from a file → `transcribe` (flag `speech`).
 - Cut the subject out of a photo → `removeBackground` (flag `vision` on Android; iOS 17+ device).
 - What is in a photo → `labelImage`; text in a photo (OCR) → `recognizeText`.

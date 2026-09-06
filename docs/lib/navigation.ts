@@ -38,19 +38,19 @@ export const navigation: NavSection[] = [
         description: "Generate and stream text with the on-device model",
       },
       {
-        title: "Multi-turn Conversations",
-        href: "/guides/multi-turn",
-        description: "Keep and pass conversation history between turns",
-      },
-      {
         title: "Structured Output",
         href: "/guides/structured-output",
         description: "Generate typed objects validated against JSON Schema",
       },
       {
-        title: "Tool Calling",
+        title: "Tool Calling and Agents",
         href: "/guides/tool-calling",
-        description: "Let on-device models call functions in your app",
+        description: "Let the model call your functions in a bounded agent loop",
+      },
+      {
+        title: "Multi-turn Conversations",
+        href: "/guides/multi-turn",
+        description: "Keep and pass conversation history between turns",
       },
     ],
   },

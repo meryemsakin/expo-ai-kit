@@ -74,14 +74,14 @@ const useCases = [
   },
   {
     emoji: "🧾",
-    job: "Typed JSON from the model",
+    job: "Get typed JSON back, validated against your schema",
     call: "generateObject",
     ios: "Apple Foundation Models",
     android: "ML Kit Prompt API",
   },
   {
     emoji: "🛠️",
-    job: "Let the model call your functions",
+    job: "Build an on-device agent: the model calls your functions",
     call: "generateText({ tools })",
     ios: "Apple Foundation Models",
     android: "ML Kit Prompt API",
@@ -136,7 +136,7 @@ const capabilities = [
   {
     emoji: "💬",
     title: "LLM",
-    copy: "Chat and stream, get typed JSON back, let the model call your functions.",
+    copy: "Chat and stream, typed JSON validated against your schema, and tool calling for on-device agents.",
     api: "sendMessage · streamMessage · generateObject · generateText",
     href: "/guides/llm",
   },
@@ -171,8 +171,9 @@ export default function Home() {
         <p className="docs-eyebrow">ON-DEVICE · iOS AND ANDROID · TYPESCRIPT</p>
         <h1>On-device AI for Expo and React Native apps.</h1>
         <p className="docs-hero-copy">
-          A local LLM, speech-to-text, vision, and embeddings as plain async
-          functions. Uses the models already on the phone (Apple
+          A local LLM with typed JSON output and tool calling, speech-to-text,
+          vision, and embeddings as plain async functions. Uses the models
+          already on the phone (Apple
           Foundation Models, Apple Vision, SpeechAnalyzer, ML Kit) and
           downloadable LiteRT-LM models when you want a specific one. No API
           keys, nothing leaves the device.
@@ -228,7 +229,7 @@ export default function Home() {
       <h2 id="one-import">Everything in one import</h2>
       <CodeBlock language="typescript" filename="app.ts">
         {`import {
-  sendMessage, streamMessage, generateObject, generateText, // 💬 LLM
+  sendMessage, streamMessage, generateObject, generateText, // 💬 LLM: chat, typed JSON, tool calling
   transcribe, streamTranscription,                          // 🎙️ Speech
   removeBackground, labelImage, recognizeText,              // 👁️ Vision
   embed, chunkText, createVectorStore,                      // 🔎 Embeddings
@@ -298,6 +299,23 @@ export default function Home() {
         single-flight; vision and embeddings are not, so these can run
         alongside each other.
       </p>
+      <CodeBlock language="typescript" filename="assistant.ts">
+        {`// 🎙️ Speech → 🛠️ Agent: a spoken command becomes a function call
+const { text } = await transcribe({ audio: { uri: commandUri } });
+const { text: reply } = await generateText([{ role: 'user', content: text }], {
+  tools: {
+    createReminder: {
+      description: 'Create a reminder at a given time.',
+      parameters: {
+        type: 'object',
+        properties: { title: { type: 'string' }, when: { type: 'string' } },
+        required: ['title', 'when'],
+      },
+      execute: async ({ title, when }: { title: string; when: string }) => reminders.add(title, when),
+    },
+  },
+});`}
+      </CodeBlock>
       <CodeBlock language="typescript" filename="voice-memo.ts">
         {`// 🎙️ Speech → 💬 LLM: a voice memo becomes a structured summary
 const { text } = await transcribe({ audio: { uri: memoUri } });

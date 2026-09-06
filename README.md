@@ -35,7 +35,7 @@
 
 ```ts
 import {
-  sendMessage, streamMessage, generateObject, generateText, // 💬 LLM
+  sendMessage, streamMessage, generateObject, generateText, // 💬 LLM: chat, typed JSON, tool calling
   transcribe, streamTranscription,                          // 🎙️ Speech
   removeBackground, labelImage, recognizeText,              // 👁️ Vision
   embed, chunkText, createVectorStore,                      // 🔎 Embeddings
@@ -47,8 +47,8 @@ import {
 | What you want | Call | iOS | Android |
 |---|---|---|---|
 | 💬 Chat with a local model, stream tokens | `sendMessage`, `streamMessage` | Apple Foundation Models | ML Kit Prompt API |
-| 🧾 Typed JSON from the model | `generateObject` | Apple Foundation Models | ML Kit Prompt API |
-| 🛠️ Let the model call your functions | `generateText({ tools })` | Apple Foundation Models | ML Kit Prompt API |
+| 🧾 Get typed JSON back, validated against your schema | `generateObject` | Apple Foundation Models | ML Kit Prompt API |
+| 🛠️ Build an on-device agent: the model calls your functions | `generateText({ tools })` | Apple Foundation Models | ML Kit Prompt API |
 | 🎙️ Speech to text, live or from a file | `streamTranscription`, `transcribe` | SpeechAnalyzer | ML Kit Speech Recognition |
 | ✂️ Cut the subject out of a photo | `removeBackground` | Apple Vision | ML Kit Subject Segmentation |
 | 🏷️ Label what is in a photo | `labelImage` | Apple Vision | ML Kit Image Labeling |
@@ -113,7 +113,8 @@ const { text } = await sendMessage([
 
 ## 💬 LLM
 
-Generate and stream text with the OS model or a downloaded one. `messages` is an array of
+Chat with the OS model or a downloaded one, get typed JSON back with `generateObject`, or let the
+model call your functions in an agent loop with `generateText`. `messages` is an array of
 `{ role: 'system' | 'user' | 'assistant'; content: string }`. The message APIs are stateless, so
 pass the complete history on every call.
 
@@ -128,7 +129,7 @@ const { promise, stop } = streamMessage(
 const { text } = await promise; // call stop() to cancel early
 ```
 
-### Structured output
+### Typed JSON output
 
 Describe the shape you want with a JSON Schema. expo-ai-kit prompts the model, extracts and
 validates the JSON, and repairs invalid output within a bounded retry loop (two attempts by
@@ -153,11 +154,12 @@ const { object } = await generateObject<Recipe>(
 );
 ```
 
-### Tool calling
+### Agents and tool calling
 
-Let the model pick a tool, validate its arguments, run your function, and answer from the result.
-The loop is bounded by `maxSteps` (default 5). Omit `execute` to get the proposed call back for
-human approval instead.
+`generateText` with `tools` is a small agent loop that runs entirely on the phone: the model picks
+a tool, expo-ai-kit validates the arguments against your schema, runs your function, feeds the
+result back, and repeats until it can answer. The loop is bounded by `maxSteps` (default 5). Omit
+`execute` to get the proposed call back for human approval instead.
 
 ```tsx
 import { generateText } from 'expo-ai-kit';
@@ -289,6 +291,25 @@ pure JavaScript and work with any vectors.
 ## Recipes
 
 A few patterns that combine capabilities:
+
+**Offline assistant.** Speech feeds an agent.
+
+```tsx
+const { text } = await transcribe({ audio: { uri: commandUri } });
+const { text: reply } = await generateText([{ role: 'user', content: text }], {
+  tools: {
+    createReminder: {
+      description: 'Create a reminder at a given time.',
+      parameters: {
+        type: 'object',
+        properties: { title: { type: 'string' }, when: { type: 'string' } },
+        required: ['title', 'when'],
+      },
+      execute: async ({ title, when }: { title: string; when: string }) => reminders.add(title, when),
+    },
+  },
+});
+```
 
 **Voice memo → structured summary.** Speech feeds the LLM.
 

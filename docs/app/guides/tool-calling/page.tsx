@@ -6,8 +6,8 @@ import Link from "next/link";
 import { createPageMetadata } from "@/lib/site";
 
 export const metadata = createPageMetadata(
-  "Tool Calling",
-  "Define typed functions that on-device models can request and execute through expo-ai-kit.",
+  "Tool Calling and Agents",
+  "Run a bounded agent loop on the device: the model calls typed functions you provide and answers from the results.",
   "/guides/tool-calling"
 );
 
@@ -25,7 +25,7 @@ const headings = [
 export default function ToolCallingPage() {
   return (
     <DocsLayout headings={headings}>
-      <h1>Tool Calling</h1>
+      <h1>Tool Calling and Agents</h1>
       <p className="text-xl text-muted leading-relaxed">
         Let the model call functions you provide, fetch data, take actions,
         and use the results to answer, all on-device with{" "}
