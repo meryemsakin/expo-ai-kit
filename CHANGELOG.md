@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- **Docs:** typed JSON output and tool calling (the on-device agent loop) are presented up front in
+  the README, docs landing, sidebar, and LLM guide instead of at the end of the LLM section, with an
+  "offline assistant" recipe (speech feeds an agent). The maintainer attribution lines are gone; the
+  project is credited as open source only.
+
+## 0.15.0
+
 > Headline: **On-device vision**: `removeBackground()` (subject cutouts), `labelImage()`
 > (image labels), and `recognizeText()` (OCR) on iOS (Apple Vision) and Android (ML Kit, opt-in
 > config-plugin flag). Plus a simpler story for what the library does, grouped by capability
