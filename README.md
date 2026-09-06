@@ -454,10 +454,9 @@ condensed for coding agents.
 Support still depends on the device, OS configuration, memory, and model. Use the availability
 functions instead of assuming support.
 
-## Support and contributing
+## Contributing
 
-Created and maintained by [Said Kaban](https://github.com/saidkaban). Questions, bug reports,
-feature requests, and pull requests are welcome in
+Questions, bug reports, feature requests, and pull requests are welcome in
 [GitHub Issues](https://github.com/saidkaban/expo-ai-kit/issues).
 
 ## License

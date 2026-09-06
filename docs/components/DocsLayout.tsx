@@ -33,13 +33,6 @@ export function DocsLayout({ children, headings = [] }: DocsLayoutProps) {
           <article className="flex-1 min-w-0 px-4 py-8 lg:px-8 xl:px-12">
             <div className="prose max-w-3xl mx-auto xl:mx-0">{children}</div>
             <footer className="docs-footer max-w-3xl mx-auto xl:mx-0">
-              <p>
-                Built and maintained by{" "}
-                <a href={siteConfig.author.url} target="_blank" rel="noopener noreferrer">
-                  {siteConfig.author.name}
-                </a>
-                .
-              </p>
               <div>
                 <a href={siteConfig.repository} target="_blank" rel="noopener noreferrer">
                   GitHub
