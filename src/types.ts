@@ -866,6 +866,13 @@ export type ModelErrorCode =
   | 'MODEL_LOAD_FAILED'
   | 'DEVICE_NOT_SUPPORTED'
   /**
+   * The app was built without the LLM. Enable it with the config plugin,
+   * `["expo-ai-kit", { "llm": true }]`, and make a new native build (dev
+   * client / EAS; not OTA). `isAvailable()` reports `false` in such builds
+   * instead of throwing.
+   */
+  | 'LLM_NOT_ENABLED'
+  /**
    * Android: the app was built without the embedding backend. Enable it with
    * the config plugin, `["expo-ai-kit", { "androidEmbeddings": true }]`, and
    * make a new native build (dev client / EAS; not OTA).

@@ -217,6 +217,8 @@ function toNativeGeneration(g?: GenerationConfig): NativeGenerationConfig {
  *   {@link prepareBuiltInModel} before the first generation; generating before
  *   it completes throws a typed MODEL_NOT_DOWNLOADED error.
  * - Unsupported platforms (web, etc.): always `false`.
+ * - Builds without the config plugin's `llm` option: always `false` (this
+ *   call never throws; the generation calls throw LLM_NOT_ENABLED instead).
  *
  * `false` does not rule out downloadable models, see
  * {@link getRecommendedModel} / {@link setModel} for the LiteRT-LM path.
@@ -234,6 +236,10 @@ export async function isAvailable(): Promise<boolean> {
  * On Android this downloads the AICore-managed ML Kit model when needed. On
  * iOS there is no app-managed download; the call validates that Apple
  * Foundation Models is available. Resolves immediately when already ready.
+ *
+ * @throws {ModelError} LLM_NOT_ENABLED when the app was built without the
+ *   config plugin's `llm` option (every generation, activation, and download
+ *   call throws it); DEVICE_NOT_SUPPORTED / DOWNLOAD_FAILED from the platform.
  */
 export async function prepareBuiltInModel(): Promise<void> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
@@ -1110,8 +1116,9 @@ export async function getDownloadableModels(): Promise<DownloadableModel[]> {
   return Promise.all(
     platformModels.map(async (entry) => {
       // Await: on iOS this bridges as a Promise (reads actor state); on Android
-      // it's synchronous and awaiting a plain value is a no-op.
-      const status = await ExpoAiKitModule.getDownloadableModelStatus(entry.id);
+      // it's synchronous and awaiting a plain value is a no-op. Typed so a
+      // build without the `llm` option rejects with LLM_NOT_ENABLED.
+      const status = await wrapNative(() => ExpoAiKitModule.getDownloadableModelStatus(entry.id));
       return {
         id: entry.id,
         name: entry.name,

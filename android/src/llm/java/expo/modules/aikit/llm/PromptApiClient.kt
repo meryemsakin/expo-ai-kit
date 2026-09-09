@@ -1,4 +1,4 @@
-package expo.modules.aikit
+package expo.modules.aikit.llm
 
 import android.os.Build
 import com.google.mlkit.genai.common.DownloadStatus

@@ -1,9 +1,17 @@
 import AVFoundation
 import ExpoModulesCore
+#if EXPO_AI_KIT_LLM
 import FoundationModels
+#endif
 import NaturalLanguage
 
 public class ExpoAiKitModule: Module {
+  // Text generation (Apple Foundation Models + LiteRT-LM) is opt-in: the
+  // podspec sets EXPO_AI_KIT_LLM only for ["expo-ai-kit", { "llm": true }].
+  // Without it, isAvailable() reports false, getBuiltInModels() reports the
+  // built-in as unavailable, and generation, activation, and download calls
+  // throw LLM_NOT_ENABLED (see the #else branches in definition()).
+#if EXPO_AI_KIT_LLM
   // Track active streaming tasks for cancellation
   private var activeStreamTasks: [String: Task<Void, Never>] = [:]
   // Track in-flight (non-streaming) sendMessage tasks so stopStreaming can cancel them.
@@ -19,6 +27,7 @@ public class ExpoAiKitModule: Module {
   // Gemma/LiteRT-LM client. Constructor is cheap, no engine load until setModel.
   private let gemmaClient = GemmaInferenceClient()
 
+#endif
   // Embedding model identifiers with an OS asset request currently in flight
   // (lets getEmbeddingModelStatus report "downloading").
   private var embeddingAssetRequests: Set<String> = []
@@ -115,6 +124,7 @@ public class ExpoAiKitModule: Module {
     return url
   }
 
+#if EXPO_AI_KIT_LLM
   // Build Apple Foundation Models generation options from the stored config.
   @available(iOS 26.0, *)
   private func appleGenerationOptions() -> GenerationOptions {
@@ -123,6 +133,7 @@ public class ExpoAiKitModule: Module {
     return GenerationOptions(temperature: temperature, maximumResponseTokens: maxTokens)
   }
 
+#endif
   // ==================================================================
   // Embedding helpers (Apple NLContextualEmbedding, iOS 17+)
   // ==================================================================
@@ -214,6 +225,7 @@ public class ExpoAiKitModule: Module {
     return "INFERENCE_FAILED:\(modelId):\(message)"
   }
 
+#if EXPO_AI_KIT_LLM
   /// Typed reason Apple Foundation Models cannot serve requests right now, or nil
   /// when it is ready. modelNotReady maps to MODEL_NOT_DOWNLOADED (transient,
   /// OS-managed download) rather than DEVICE_NOT_SUPPORTED (permanent).
@@ -245,12 +257,22 @@ public class ExpoAiKitModule: Module {
     }
   }
 
+#endif
+
+  private func llmNotEnabledError() -> NSError {
+    return contractError(
+      "LLM_NOT_ENABLED", "apple-fm",
+      "The LLM is opt-in. Add [\"expo-ai-kit\", { \"llm\": true }] to your app config plugins "
+        + "and make a new native build (dev client / EAS, not OTA)")
+  }
+
   public func definition() -> ModuleDefinition {
     Name("ExpoAiKit")
 
     // Declare events that can be sent to JavaScript
     Events("onStreamToken", "onDownloadProgress", "onModelStateChange", "onTranscriptionUpdate")
 
+#if EXPO_AI_KIT_LLM
     // ==================================================================
     // Inference API
     // ==================================================================
@@ -475,6 +497,32 @@ public class ExpoAiKitModule: Module {
       }
     }
 
+#else
+    // Built without ["expo-ai-kit", { "llm": true }]: no Foundation Models or
+    // LiteRT-LM code is compiled in. stop/cancel/unload stay lenient no-ops.
+
+    Function("isAvailable") { () -> Bool in
+      return false
+    }
+
+    AsyncFunction("prepareBuiltInModel") { () async throws in
+      throw self.llmNotEnabledError()
+    }
+
+    AsyncFunction("sendMessage") {
+      (messages: [[String: Any]], fallbackSystemPrompt: String, sessionId: String) async throws -> [String: Any] in
+      throw self.llmNotEnabledError()
+    }
+
+    AsyncFunction("startStreaming") {
+      (messages: [[String: Any]], fallbackSystemPrompt: String, sessionId: String) throws in
+      throw self.llmNotEnabledError()
+    }
+
+    AsyncFunction("stopStreaming") { (sessionId: String) in
+    }
+
+#endif
     // ==================================================================
     // Embeddings
     // ==================================================================
@@ -617,6 +665,7 @@ public class ExpoAiKitModule: Module {
     // Model discovery
     // ==================================================================
 
+#if EXPO_AI_KIT_LLM
     Function("getBuiltInModels") { () -> [[String: Any]] in
       var available = false
       if #available(iOS 26.0, *) {
@@ -649,10 +698,29 @@ public class ExpoAiKitModule: Module {
       return "not-downloaded"
     }
 
+#else
+    Function("getBuiltInModels") { () -> [[String: Any]] in
+      return [
+        [
+          "id": "apple-fm",
+          "name": "Apple Foundation Model",
+          "available": false,
+          "platform": "ios",
+          "contextWindow": 4096
+        ]
+      ]
+    }
+
+    AsyncFunction("getDownloadableModelStatus") { (modelId: String) async throws -> String in
+      throw self.llmNotEnabledError()
+    }
+
+#endif
     Function("getDeviceRamBytes") { () -> Int in
       return Int(ProcessInfo.processInfo.physicalMemory)
     }
 
+#if EXPO_AI_KIT_LLM
     // ==================================================================
     // Model selection & memory management
     // ==================================================================
@@ -792,6 +860,36 @@ public class ExpoAiKitModule: Module {
       ])
     }
 
+#else
+    AsyncFunction("setModel") {
+      (modelId: String, minRamBytes: Int, backend: String, generation: [String: Double]) async throws in
+      throw self.llmNotEnabledError()
+    }
+
+    Function("getActiveModel") { () -> String in
+      return "apple-fm"
+    }
+
+    AsyncFunction("unloadModel") { () async in
+    }
+
+    AsyncFunction("downloadModel") { (modelId: String, url: String, sha256: String) async throws in
+      throw self.llmNotEnabledError()
+    }
+
+    AsyncFunction("cancelDownload") { (modelId: String) async in
+    }
+
+    AsyncFunction("deleteModel") { (modelId: String) async in
+      // Reclaim storage from a build that had the option on.
+      LlmModelFiles.delete(modelId)
+      self.sendEvent("onModelStateChange", [
+        "modelId": modelId,
+        "status": "not-downloaded"
+      ])
+    }
+
+#endif
     // ==================================================================
     // Speech-to-text (SpeechAnalyzer, iOS 26+)
     // ==================================================================

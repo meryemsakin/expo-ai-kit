@@ -1,5 +1,11 @@
 # expo-ai-kit consumer ProGuard/R8 rules (applied to apps that depend on this library).
 
+# The optional text backend (llm config-plugin flag) is instantiated by
+# reflection from ExpoAiKitModule, keep its constructor.
+-keep class expo.modules.aikit.llm.AndroidLlmBackend {
+    <init>(android.content.Context, expo.modules.aikit.LlmEventSink);
+}
+
 # The optional EmbeddingGemma backend (androidEmbeddings config-plugin flag) is
 # instantiated by reflection from ExpoAiKitModule, keep its constructor.
 -keep class expo.modules.aikit.embeddings.EmbeddingGemmaBackend {

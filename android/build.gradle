@@ -6,6 +6,17 @@ plugins {
 group = 'expo.modules.aikit'
 version = '0.1.0'
 
+// Every capability is opt-in at build time. The expo-ai-kit config plugin
+// (app.plugin.js) writes one gradle property per enabled option at prebuild;
+// bare React Native apps set the same keys in android/gradle.properties. Off
+// (default): the dependency is not added and the source set is not compiled,
+// zero bytes added to the APK.
+
+// Opt-in text generation (ML Kit Prompt API + LiteRT-LM), from
+// ["expo-ai-kit", { "llm": true }]. On: genai-prompt, litertlm-android
+// (~21 MB uncompressed arm64 native library), and src/llm are compiled in.
+def llmEnabled = (findProperty("expoAiKit.llm") ?: "false").toString().toBoolean()
+
 // Opt-in Android embeddings (EmbeddingGemma via MediaPipe TextEmbedder).
 // The expo-ai-kit config plugin (app.plugin.js) writes this gradle property at
 // prebuild when the app enables ["expo-ai-kit", { "androidEmbeddings": true }].
@@ -30,7 +41,12 @@ def visionEnabled = (findProperty("expoAiKit.vision") ?: "false").toString().toB
 android {
   namespace "expo.modules.aikit"
   defaultConfig {
-    minSdkVersion 26
+    // ML Kit GenAI (Prompt API, speech recognition) requires API 26. Without
+    // those options the library follows the app's minSdkVersion (Expo's floor
+    // is 24; the face detector and LiteRT-LM run on 21 and 23).
+    if (llmEnabled || speechEnabled) {
+      minSdkVersion 26
+    }
     versionCode 1
     versionName "0.1.0"
     // Keeps the reflection-instantiated embedding backend (and MediaPipe's
@@ -42,6 +58,9 @@ android {
   }
   sourceSets {
     main {
+      if (llmEnabled) {
+        java.srcDirs += 'src/llm/java'
+      }
       if (androidEmbeddingsEnabled) {
         java.srcDirs += 'src/embeddings/java'
       }
@@ -58,15 +77,19 @@ android {
 // litertlm-android 0.10.0 ships Kotlin 2.3.0 metadata. Expo SDK 55 pins
 // the Kotlin compiler to 2.1.x which can only read up to 2.2.0 metadata.
 // This flag tells the compiler to skip the metadata version check.
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-  kotlinOptions {
-    freeCompilerArgs += ["-Xskip-metadata-version-check"]
+if (llmEnabled) {
+  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+      freeCompilerArgs += ["-Xskip-metadata-version-check"]
+    }
   }
 }
 
 dependencies {
-  implementation "com.google.mlkit:genai-prompt:1.0.0-beta2"
-  implementation "com.google.ai.edge.litertlm:litertlm-android:0.10.0"
+  if (llmEnabled) {
+    implementation "com.google.mlkit:genai-prompt:1.0.0-beta2"
+    implementation "com.google.ai.edge.litertlm:litertlm-android:0.10.0"
+  }
   if (androidEmbeddingsEnabled) {
     // Keep in sync with tasksTextVersion in src/models.ts, it is part of the
     // embedding model identity, so bumping this must bump the JS pin too.

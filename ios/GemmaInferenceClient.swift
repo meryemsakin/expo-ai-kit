@@ -1,6 +1,8 @@
 import Foundation
 import CryptoKit
 
+/// Compiled only when the `llm` option is on: ExpoAiKit.podspec excludes this
+/// file (and the LiteRT-LM wrapper sources it depends on) otherwise.
 actor GemmaInferenceClient {
 
   private var engine: Engine?
@@ -20,13 +22,6 @@ actor GemmaInferenceClient {
 
   // MARK: - Paths
 
-  private static var modelsDirectory: URL {
-    let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    let dir = support.appendingPathComponent("ExpoAiKit/Models", isDirectory: true)
-    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return dir
-  }
-
   private static var cacheDirectory: URL {
     let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     let dir = caches.appendingPathComponent("ExpoAiKit/litertlm", isDirectory: true)
@@ -35,7 +30,7 @@ actor GemmaInferenceClient {
   }
 
   nonisolated func modelFileURL(_ modelId: String) -> URL {
-    return Self.modelsDirectory.appendingPathComponent("\(modelId).litertlm")
+    return LlmModelFiles.modelFileURL(modelId)
   }
 
   nonisolated func isModelFileDownloaded(_ modelId: String) -> Bool {

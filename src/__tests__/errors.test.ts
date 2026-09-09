@@ -93,6 +93,7 @@ describe('parseNativeErrorMessage', () => {
     for (const code of [
       'MODEL_NOT_DOWNLOADED',
       'DOWNLOAD_CANCELLED',
+      'LLM_NOT_ENABLED',
       'EMBEDDINGS_NOT_ENABLED',
       'LANGUAGE_NOT_SUPPORTED',
       'INFERENCE_BUSY',
@@ -104,5 +105,31 @@ describe('parseNativeErrorMessage', () => {
       expect(KNOWN_ERROR_CODES.has(code)).toBe(true);
       expect(parseNativeErrorMessage(`${code}:m:r`)?.code).toBe(code);
     }
+  });
+});
+
+describe('LLM_NOT_ENABLED (opt-in build flag)', () => {
+  it('parses the bare native contract from either platform', () => {
+    expect(
+      parseNativeErrorMessage(
+        'LLM_NOT_ENABLED:mlkit:The LLM is opt-in. Add ["expo-ai-kit", { "llm": true }] to your app config plugins and make a new native build (dev client / EAS, not OTA).'
+      )
+    ).toMatchObject({ code: 'LLM_NOT_ENABLED', modelId: 'mlkit' });
+    expect(
+      parseNativeErrorMessage(
+        'LLM_NOT_ENABLED:apple-fm:The LLM is opt-in. Add ["expo-ai-kit", { "llm": true }]'
+      )
+    ).toMatchObject({ code: 'LLM_NOT_ENABLED', modelId: 'apple-fm' });
+  });
+
+  it('is found when expo-modules-core wraps the rejection', () => {
+    const wrapped =
+      "Call to function 'ExpoAiKit.sendMessage' has been rejected.\n" +
+      '→ Caused by: java.lang.RuntimeException: LLM_NOT_ENABLED:mlkit:The LLM is opt-in.';
+    expect(parseNativeErrorMessage(wrapped)).toEqual({
+      code: 'LLM_NOT_ENABLED',
+      modelId: 'mlkit',
+      reason: 'The LLM is opt-in.',
+    });
   });
 });
