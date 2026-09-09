@@ -118,10 +118,17 @@ jobs:
   # Guards the Kotlin surface the node tier can't see, by regenerating the
   # example's android/ via `expo prebuild` and compiling it.
   android:
-    name: compile android (kotlin)
+    name: compile android (kotlin, ${{ matrix.features }})
     needs: changes
     if: ${{ needs.changes.outputs.library == 'true' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # `all`: every opt-in native backend the example enables. `none`: the
+        # default build a new app gets with no plugin options, which must
+        # compile too and must not pull in the LiteRT-LM runtime.
+        features: [all, none]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -138,21 +145,40 @@ jobs:
       - name: Install example deps
         working-directory: example
         run: npm ci
+      - name: Drop every plugin option (default build)
+        if: matrix.features == 'none'
+        working-directory: example
+        run: node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('app.json','utf8'));j.expo.plugins=j.expo.plugins.map(p=>Array.isArray(p)&&p[0]==='expo-ai-kit'?'expo-ai-kit':p);fs.writeFileSync('app.json',JSON.stringify(j,null,2)+'\n')"
       - name: Prebuild android
         working-directory: example
         run: npx expo prebuild --platform android --no-install
       - name: Compile Kotlin (app + autolinked expo-ai-kit module)
         working-directory: example/android
         run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
+      - name: Assert the LiteRT-LM runtime is only linked when llm is on
+        working-directory: example/android
+        run: |
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath --no-daemon -q > deps.txt
+          if [ "${{ matrix.features }}" = "none" ]; then
+            ! grep -q "litertlm" deps.txt
+          else
+            grep -q "litertlm" deps.txt
+          fi
 
   # Tier 3 — iOS native. THE tier that catches Swift errors like PR #8's.
   # Free on public repos as long as it's the standard `macos-*` runner (not
   # `-large`/`-xlarge`). Builds against the SIMULATOR SDK so no code signing.
   ios:
-    name: build ios (swift, simulator)
+    name: build ios (swift, simulator, ${{ matrix.features }})
     needs: changes
     if: ${{ needs.changes.outputs.library == 'true' }}
     runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        # See the android job: `none` is the default build and must not
+        # download or link the LiteRT-LM xcframework.
+        features: [all, none]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -164,7 +190,11 @@ jobs:
       - name: Install example deps
         working-directory: example
         run: npm ci
-      # Runs `pod install`, which triggers the podspec's prepare_command
+      - name: Drop every plugin option (default build)
+        if: matrix.features == 'none'
+        working-directory: example
+        run: node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('app.json','utf8'));j.expo.plugins=j.expo.plugins.map(p=>Array.isArray(p)&&p[0]==='expo-ai-kit'?'expo-ai-kit':p);fs.writeFileSync('app.json',JSON.stringify(j,null,2)+'\n')"
+      # With `llm` on, `pod install` runs the podspec's prepare_command
       # (scripts/install-litertlm.sh) to fetch the LiteRT-LM C xcframework.
       - name: Prebuild ios
         working-directory: example
@@ -172,6 +202,13 @@ jobs:
       - name: Install pods
         working-directory: example/ios
         run: pod install
+      - name: Assert the LiteRT-LM xcframework is only fetched when llm is on
+        run: |
+          if [ "${{ matrix.features }}" = "none" ]; then
+            test ! -d ios/Vendor/CLiteRTLM.xcframework
+          else
+            test -d ios/Vendor/CLiteRTLM.xcframework
+          fi
       - name: Build (simulator, no signing)
         working-directory: example/ios
         run: |

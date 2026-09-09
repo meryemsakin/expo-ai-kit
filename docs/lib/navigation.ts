@@ -14,171 +14,50 @@ export interface NavSection {
 // Embeddings today), followed by the cross-cutting model, platform, and
 // integration guides. A new capability gets its own group here.
 export const navigation: NavSection[] = [
-  {
-    title: "Introduction",
-    items: [
-      {
-        title: "Overview",
-        href: "/",
-        description: "On-device AI for Expo and React Native",
-      },
-      {
-        title: "Get Started",
-        href: "/get-started",
-        description: "Install expo-ai-kit and run your first local model",
-      },
-    ],
-  },
-  {
-    title: "LLM",
-    items: [
-      {
-        title: "LLM",
-        href: "/guides/llm",
-        description: "Generate and stream text with the on-device model",
-      },
-      {
-        title: "Structured Output",
-        href: "/guides/structured-output",
-        description: "Generate typed objects validated against JSON Schema",
-      },
-      {
-        title: "Tool Calling and Agents",
-        href: "/guides/tool-calling",
-        description: "Let the model call your functions in a bounded agent loop",
-      },
-      {
-        title: "Multi-turn Conversations",
-        href: "/guides/multi-turn",
-        description: "Keep and pass conversation history between turns",
-      },
-    ],
-  },
-  {
-    title: "Speech",
-    items: [
-      {
-        title: "Speech-to-Text",
-        href: "/guides/speech",
-        description: "Transcribe live speech and audio files on-device",
-      },
-    ],
-  },
-  {
-    title: "Vision",
-    items: [
-      {
-        title: "Background Removal, Labels & OCR",
-        href: "/guides/vision",
-        description: "Cut out subjects, label images, and read text on-device",
-      },
-    ],
-  },
-  {
-    title: "Embeddings",
-    items: [
-      {
-        title: "Embeddings",
-        href: "/guides/embeddings",
-        description: "Semantic search and retrieval over your own data",
-      },
-    ],
-  },
-  {
-    title: "Models & Platforms",
-    items: [
-      {
-        title: "Models",
-        href: "/guides/models",
-        description: "Use OS models, download open models, or bring your own",
-      },
-      {
-        title: "Platform Support",
-        href: "/guides/platform-support",
-        description: "Compare iOS and Android requirements and capabilities",
-      },
-      {
-        title: "Android Setup",
-        href: "/guides/android-setup",
-        description: "Configure ML Kit and the optional Android features",
-      },
-      {
-        title: "Vercel AI SDK",
-        href: "/guides/vercel-ai-sdk",
-        description: "Use the AI SDK with on-device language, embedding, and speech models",
-      },
-      {
-        title: "Migration",
-        href: "/guides/migration",
-        description: "Upgrade applications built with the early session API",
-      },
-    ],
-  },
-  {
-    title: "API Reference",
-    items: [
-      {
-        title: "LLM",
-        href: "/api#llm",
-        description: "isAvailable, prepareBuiltInModel, sendMessage, streamMessage, generateObject, generateText",
-      },
-      {
-        title: "Speech",
-        href: "/api#speech-to-text",
-        description: "transcribe(), streamTranscription(), and the speech lifecycle",
-      },
-      {
-        title: "Vision",
-        href: "/api#vision",
-        description: "removeBackground(), labelImage(), recognizeText(), and the vision lifecycle",
-      },
-      {
-        title: "Embeddings",
-        href: "/api#embeddings",
-        description: "embed(), the embedding lifecycle, and the retrieval toolkit",
-      },
-      {
-        title: "Models",
-        href: "/api#model-management",
-        description: "Discover, download, activate, remove, and register models",
-      },
-      {
-        title: "AI SDK Provider",
-        href: "/api#ai-sdk-provider",
-        description: "Use expo-ai-kit through the Vercel AI SDK",
-      },
-      {
-        title: "Config Plugin",
-        href: "/api#config-plugin",
-        description: "Opt-in flags: speech, vision, androidEmbeddings",
-      },
-      {
-        title: "Types",
-        href: "/api#types",
-        description: "Public TypeScript types and configuration",
-      },
-      {
-        title: "Errors",
-        href: "/api#errors",
-        description: "Handle typed ModelError codes",
-      },
-    ],
-  },
-  {
-    title: "Help",
-    items: [
-      {
-        title: "Troubleshooting",
-        href: "/troubleshooting",
-        description: "Diagnose setup, model, download, and inference failures",
-      },
-      {
-        title: "Examples",
-        href: "/examples",
-        description: "Copy complete integration patterns",
-      },
-    ],
-  },
+  { title: "Start", items: [
+    { title: "Overview", href: "/", description: "On-device AI for React Native and Expo" },
+    { title: "Installation", href: "/get-started", description: "Install, build, and run your first request" },
+  ] },
+  { title: "LLM", items: [
+    { title: "Generate text", href: "/guides/llm", description: "sendMessage, streamMessage, system prompts, and cancellation" },
+    { title: "Structured output", href: "/guides/structured-output", description: "generateObject with a JSON Schema" },
+    { title: "Tool calling", href: "/guides/tool-calling", description: "generateText with tools and bounded agent loops" },
+    { title: "Conversations", href: "/guides/multi-turn", description: "Pass and trim message history" },
+  ] },
+  { title: "Speech", items: [
+    { title: "Transcribe audio", href: "/guides/speech", description: "transcribe files and streamTranscription from the microphone" },
+  ] },
+  { title: "Vision", items: [
+    { title: "Work with images", href: "/guides/vision", description: "removeBackground, labelImage, recognizeText, cutouts and OCR" },
+    { title: "Check faces", href: "/guides/face-check", description: "checkFace: one dominant face, photo resolution, expo-face-check migration" },
+  ] },
+  { title: "Embeddings", items: [
+    { title: "Search by meaning", href: "/guides/embeddings", description: "embed, chunkText, createVectorStore, semantic search and retrieval" },
+  ] },
+  { title: "Configuration", items: [
+    { title: "Models", href: "/guides/models", description: "Built-in, downloadable, and custom LiteRT-LM models" },
+    { title: "Platform support", href: "/guides/platform-support", description: "Device and OS requirements" },
+    { title: "Vercel AI SDK", href: "/guides/vercel-ai-sdk", description: "Use expo-ai-kit/ai with the AI SDK" },
+  ] },
+  { title: "Reference & help", items: [
+    { title: "API reference", href: "/api", description: "Functions, types, plugin options, and errors" },
+    { title: "Examples", href: "/examples", description: "Complete React Native integrations" },
+    { title: "Troubleshooting", href: "/troubleshooting", description: "Setup, downloads, and runtime errors" },
+  ] },
+];
+
+// Deep reference entries stay searchable without duplicating the sidebar.
+const referenceItems: NavItem[] = [
+  { title: "LLM reference", href: "/api#llm", description: "isAvailable, prepareBuiltInModel, sendMessage, streamMessage, generateObject, generateText" },
+  { title: "Speech reference", href: "/api#speech-to-text", description: "Speech permissions, preparation, transcription" },
+  { title: "Vision reference", href: "/api#vision", description: "Image functions, face checks, availability and preparation" },
+  { title: "Embeddings reference", href: "/api#embeddings", description: "Embedding lifecycle and vector search" },
+  { title: "Models reference", href: "/api#model-management", description: "setModel, downloadModel, registerModel, unloadModel" },
+  { title: "Config plugin", href: "/api#config-plugin", description: "speech, vision, androidEmbeddings" },
+  { title: "Types", href: "/api#types", description: "TypeScript interfaces and results" },
+  { title: "Errors", href: "/api#errors", description: "ModelError codes" },
+  { title: "Android setup", href: "/guides/android-setup", description: "Android native configuration" },
+  { title: "Migration", href: "/guides/migration", description: "Upgrade from the early session API" },
 ];
 
 export interface SearchItem {
@@ -194,7 +73,7 @@ function flattenItems(items: NavItem[]): NavItem[] {
 
 // Search and the sidebar share one source of truth. Adding a page or API entry
 // to navigation makes it searchable automatically.
-export const searchIndex: SearchItem[] = navigation.flatMap((section) =>
+export const searchIndex: SearchItem[] = [...navigation, { title: "Reference", items: referenceItems }].flatMap((section) =>
   flattenItems(section.items).map((item) => ({
     title: item.title,
     href: item.href,

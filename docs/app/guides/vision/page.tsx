@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DocsLayout } from "@/components/DocsLayout";
 import { Callout } from "@/components/Callout";
 import { CodeBlock } from "@/components/CodeBlock";
@@ -11,7 +12,6 @@ export const metadata = createPageMetadata(
 );
 
 const headings = [
-  { id: "overview", text: "Overview", level: 2 },
   { id: "enable", text: "Enable Vision (Android)", level: 2 },
   { id: "availability", text: "Availability & Preparation", level: 2 },
   { id: "background-removal", text: "Background Removal", level: 2 },
@@ -27,43 +27,18 @@ export default function VisionPage() {
     <DocsLayout headings={headings}>
       <h1>Vision</h1>
       <p className="text-xl text-muted leading-relaxed">
-        Three things a phone can do with a photo, entirely on-device: cut the
-        subject out, describe what is in it, and read the text in it.
+        Remove backgrounds, label images, and read text in photos on the device.
       </p>
 
       <BadgeGroup platforms={["ios", "android", "new"]} />
 
-      <h2 id="overview">Overview</h2>
-      <p>
-        expo-ai-kit uses each platform&apos;s own vision engine: Apple&apos;s{" "}
-        <strong>Vision framework</strong> on iOS and <strong>ML Kit</strong> on
-        Android. Nothing is uploaded, images are read from the device and the
-        results come back as plain data.
-      </p>
-      <ul>
-        <li>
-          <code>removeBackground()</code>: a cutout of the subject with a
-          transparent background, saved as a PNG file
-        </li>
-        <li>
-          <code>labelImage()</code>: ranked labels describing the image
-          (&ldquo;Dog&rdquo;, &ldquo;Beach&rdquo;, &ldquo;Food&rdquo;, …)
-        </li>
-        <li>
-          <code>recognizeText()</code>: the text in the image, with normalized
-          bounds for every block and line
-        </li>
-        <li>
-          The same lifecycle style as the rest of the library: explicit
-          availability, one preparation call, typed errors
-        </li>
-      </ul>
+      <p>To check profile photos for one dominant face, see <Link href="/guides/face-check">Face checks</Link>.</p>
 
       <h2 id="enable">Enable vision (Android)</h2>
       <p>
         iOS needs no configuration, the Vision framework ships with the OS.
-        Android is off by default because it adds the ML Kit clients and a
-        bundled label model to the APK. Turn it on in your app config and make a
+        Android is off by default because it adds the ML Kit clients and
+        bundled face and label models to the APK. Turn it on in your app config and make a
         new native build (dev client or EAS, not an OTA update):
       </p>
       <CodeBlock language="json" filename="app.json">
@@ -92,7 +67,7 @@ export default function VisionPage() {
         {`import { getVisionAvailability, prepareVision } from 'expo-ai-kit';
 
 const availability = await getVisionAvailability();
-// availability.backgroundRemoval / imageLabeling / textRecognition, each one of:
+// availability.backgroundRemoval / imageLabeling / textRecognition / faceCheck:
 //   { status: 'available' }
 //   { status: 'downloadable' | 'downloading' }, Android model not installed yet
 //   { status: 'unavailable', reason: 'platform' | 'os-version' | 'device' | 'not-enabled' }
@@ -219,7 +194,7 @@ const languages = await getSupportedTextRecognitionLanguages();
 
       <h2 id="images">Image input</h2>
       <p>
-        Every vision call takes <code>{`{ uri }`}</code>: a <code>file://</code>{" "}
+        The image operations below take <code>{`{ uri }`}</code>: a <code>file://</code>{" "}
         URI or absolute path (Android also accepts <code>content://</code>).
         Photos from <code>expo-image-picker</code>, <code>expo-camera</code>, and
         the file system work directly. EXIF orientation is applied before

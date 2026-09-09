@@ -26,6 +26,7 @@ import {
   getActiveModel,
   getDownloadableModels,
   getSpeechRecognitionAvailability,
+  checkFace,
   getVisionAvailability,
   labelImage,
   prepareSpeechRecognition,
@@ -167,6 +168,7 @@ function VisionSection() {
   const [cutoutInfo, setCutoutInfo] = useState<string>('');
   const [labels, setLabels] = useState<string>('');
   const [ocr, setOcr] = useState<string>('');
+  const [faceResult, setFaceResult] = useState<string>('');
   const [busy, setBusy] = useState<string | null>(null);
   const [visionError, setVisionError] = useState<string | null>(null);
 
@@ -176,7 +178,7 @@ function VisionSection() {
       setAvailability(
         `cutout ${describeAvailability(a.backgroundRemoval)} · labels ${describeAvailability(
           a.imageLabeling
-        )} · ocr ${describeAvailability(a.textRecognition)}`
+        )} · ocr ${describeAvailability(a.textRecognition)} · faces ${describeAvailability(a.faceCheck)}`
       );
     } catch (e: any) {
       setAvailability(`error: ${e?.message ?? String(e)}`);
@@ -216,6 +218,7 @@ function VisionSection() {
       setCutoutInfo('');
       setLabels('');
       setOcr('');
+      setFaceResult('');
     });
 
   // Cut out every subject, or only the one under a normalized point.
@@ -259,6 +262,13 @@ function VisionSection() {
       setLabels(result.map((l) => `${l.label} ${(l.confidence * 100).toFixed(0)}%`).join('\n') || '(none)');
     });
 
+  const doFaceCheck = () =>
+    run('checking faces', async () => {
+      if (!imageUri) return;
+      const result = await checkFace(imageUri);
+      setFaceResult(JSON.stringify(result, null, 2));
+    });
+
   const doOcr = () =>
     run('reading', async () => {
       if (!imageUri) return;
@@ -287,6 +297,7 @@ function VisionSection() {
         <Button title="Pick photo" onPress={doPick} disabled={!!busy} />
         <Button title="Cutout" onPress={doCutout} disabled={!!busy || !imageUri} />
         <Button title="Labels" onPress={doLabels} disabled={!!busy || !imageUri} />
+        <Button title="Check face" onPress={doFaceCheck} disabled={!!busy || !imageUri} />
         <Button title="OCR" onPress={doOcr} disabled={!!busy || !imageUri} />
         <Button title="Share cutout" onPress={doShare} disabled={!!busy || !cutoutUri} />
       </View>
@@ -311,6 +322,7 @@ function VisionSection() {
           <Text style={styles.outputText}>{labels}</Text>
         </View>
       )}
+      {faceResult !== '' && <Text style={styles.outputText}>{faceResult}</Text>}
       {ocr !== '' && (
         <View style={styles.outputBox}>
           <Text style={styles.outputLabel}>text</Text>
@@ -444,7 +456,9 @@ export default function App() {
     setError(null);
     try { await fn(); }
     catch (e: any) { setError(e?.message ?? String(e)); }
-    finally { setBusy(null); await refresh(); }
+    // refresh() rejects with LLM_NOT_ENABLED in a build without the llm
+    // option; the mount-time call already shows that, so keep it quiet here.
+    finally { setBusy(null); await refresh().catch(() => {}); }
   };
 
   const doDownload = () => withBusy('downloading', async () => {

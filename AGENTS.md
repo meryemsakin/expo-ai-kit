@@ -6,7 +6,7 @@ duplicate those records here.
 
 `expo-ai-kit` provides on-device AI for Expo and React Native as a set of capabilities, currently
 LLM (chat, structured output, tool calling), speech-to-text, vision (background removal, image
-labels, OCR), and embeddings,
+labels, OCR, face checks), and embeddings,
 across Apple Foundation Models, Apple SpeechAnalyzer, Apple Vision, ML Kit (Prompt API, GenAI Speech
 Recognition, Vision), and downloadable or custom LiteRT-LM models on iOS and Android. Developer-facing
 material (README, docs site, npm metadata, `llms.txt`) presents the capabilities in that order and
@@ -22,7 +22,8 @@ never hard-codes their count; a new capability gets its own group in each of tho
 - `npm run lint`, run ESLint using the flat config in `eslint.config.js`.
 - CI routes by changed path: `docs/`-only changes run the docs checks; other changes run Node tests and
   the Android/Kotlin and iOS/Swift builds; mixed changes run both. Native changes are not verified by
-  the Node job alone.
+  the Node job alone. The native jobs run a two-entry matrix: the example with every plugin option
+  on, and the default build with none (which must compile and must not fetch or link LiteRT-LM).
 - The tracked source under `example/` is the native CI fixture. Its generated `ios/`, `android/`,
   `.expo/`, and `node_modules/` directories are disposable and must remain untracked.
 - Version, publish, tag, or push only when explicitly requested. The publish scripts require a clean
@@ -55,6 +56,17 @@ a side effect of unrelated work.
 - **Embeddings are independent of generation.** `embed()` does not use the generation single-flight
   guard and never downloads a model implicitly. Persisted vectors are compatible only when their model
   identities match exactly.
+- **Every capability is opt-in at build time, including the LLM.** The config plugin writes one
+  `expoAiKit.<option>` key per enabled option to `android/gradle.properties` and, for `llm`, to
+  `ios/Podfile.properties.json`; `android/build.gradle` and `ios/ExpoAiKit.podspec` read them. Nothing
+  heavy is linked unconditionally: a new native dependency must sit behind an option's gate. The
+  `llm` flag compiles the reflection-resolved `android/src/llm/` source set with the ML Kit GenAI and
+  LiteRT-LM dependencies (and raises Android `minSdkVersion` to 26, as `speech` does), and on iOS
+  vendors the LiteRT-LM xcframework and sets the `EXPO_AI_KIT_LLM` Swift compilation condition that
+  gates the Foundation Models and LiteRT-LM code in `ExpoAiKitModule.swift`. Without it,
+  `isAvailable()` is `false`, `getBuiltInModels()` reports the built-in as unavailable, generation,
+  activation, and download calls throw `LLM_NOT_ENABLED`, stop/cancel/unload are no-ops, and
+  `deleteModel()` still reclaims model files via the always-compiled `LlmModelFiles` helpers.
 - **Speech is opt-in and independent.** The config plugin's `speech` flag compiles the Android speech
   backend (reflection-resolved, like embeddings) and adds microphone permissions; without it, speech
   APIs throw `SPEECH_NOT_ENABLED`. Speech has its own single-flight (`SPEECH_BUSY`) and never touches
@@ -68,7 +80,9 @@ a side effect of unrelated work.
   that downloads (Google Play services models); `removeBackground`/`recognizeText` throw
   `MODEL_NOT_DOWNLOADED` instead of downloading. Vision never holds the generation or speech
   guards. Cutouts are written to the app cache and returned as `file://` URIs, pixel buffers do
-  not cross the bridge. Coordinates in results are normalized (origin top-left, 0–1).
+  not cross the bridge. Coordinates are normalized (origin top-left, 0–1), except `checkFace()` bounds,
+  which retain upright image pixels for expo-face-check compatibility. Face checks use a bundled
+  Android detector and need no preparation, permissions, or generation guard.
 - **The AI SDK provider preserves core behavior.** `src/ai/` must stay a thin adapter over the public
   inference and embedding primitives. Imports from `@ai-sdk/provider` must remain type-only so the
   zero-runtime-dependency contract holds.
@@ -87,9 +101,13 @@ preference is not a ban on a well-designed stateful-session primitive.
   `src/speech.ts`, `src/vision.ts`, and `src/thinking.ts`, pure logic with Jest coverage.
 - `src/ai/`, Vercel AI SDK adapter; `ai.js` and `ai.d.ts` are its package-root shims.
 - `src/models.ts`, downloadable/custom model registry and Android embedding-model pins.
-- `app.plugin.js`, Expo config plugin: opt-in Android embeddings, opt-in speech (permissions +
-  conditional native source set), and opt-in Android vision (conditional native source set).
-- `ios/` and `android/`, native backends and model/asset lifecycle code; speech lives in
+- `app.plugin.js`, Expo config plugin: opt-in LLM (gradle property + Podfile property), opt-in
+  Android embeddings, opt-in speech (permissions + conditional native source set), and opt-in
+  Android vision (conditional native source set).
+- `ios/` and `android/`, native backends and model/asset lifecycle code; the LLM lives in
+  `ios/GemmaInferenceClient.swift` plus the `EXPO_AI_KIT_LLM` blocks of `ios/ExpoAiKitModule.swift`
+  and the conditionally compiled `android/src/llm/` (`AndroidLlmBackend` behind the `LlmBackend`
+  interface); speech lives in
   `ios/SpeechRecognitionClient.swift` and the conditionally compiled `android/src/speech/`; vision in
   `ios/VisionClient.swift` and the conditionally compiled `android/src/vision/`.
 - `docs/`, the Next.js documentation site (`docs/lib/navigation.ts` is the sidebar and search
@@ -110,7 +128,7 @@ preference is not a ban on a well-designed stateful-session primitive.
 
 Keep exactly one roadmap item active. Do not start or add a later item while it is active.
 
-- **Next:** _(none, awaiting the maintainer's next item)_
+- **Next:** Integrate expo-face-check with Aura-compatible behavior, simplify documentation with React Native first, and prepare Aura's migration PR.
 
 When the item is complete, clear the `Next` value, report completion, and ask the maintainer for exactly
 one next item. Do not retain completed items or release history in this section.

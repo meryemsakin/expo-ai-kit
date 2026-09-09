@@ -34,6 +34,23 @@ export default function ExamplesPage() {
 
       <BadgeGroup platforms={["ios", "android"]} />
 
+      <details>
+        <summary>Watch the capability demos</summary>
+        <div className="grid grid-cols-2 gap-4 my-4">
+          {[
+            { file: "text", label: "LLM: stream text" },
+            { file: "speech", label: "Speech: transcribe audio" },
+            { file: "vision", label: "Vision: cutouts and labels" },
+            { file: "embeddings", label: "Embeddings: semantic search" },
+          ].map(({ file, label }) => (
+            <figure key={file}>
+              <video src={`/demos/${file}.mp4`} controls playsInline muted loop preload="none" aria-label={label} className="w-full rounded-lg" />
+              <figcaption className="text-sm text-muted">{label}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </details>
+
       <h2 id="complete-chat-example">Complete Chat Example</h2>
       <p>A full cross-platform chat component, tracking history yourself:</p>
 

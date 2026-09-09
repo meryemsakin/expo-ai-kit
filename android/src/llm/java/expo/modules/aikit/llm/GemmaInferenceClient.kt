@@ -1,4 +1,4 @@
-package expo.modules.aikit
+package expo.modules.aikit.llm
 
 import android.app.ActivityManager
 import android.content.Context
@@ -12,6 +12,8 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.SamplerConfig
+import expo.modules.aikit.DownloadUtil
+import expo.modules.aikit.LlmModelFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -382,15 +384,14 @@ class GemmaInferenceClient(private val context: Context) {
 
     try {
       withContext(Dispatchers.IO) {
-        val modelsDir = File(context.filesDir, "models")
-        modelsDir.mkdirs()
+        LlmModelFiles.modelsDirectory(context).mkdirs()
 
         DownloadUtil.downloadVerified(
           context = context,
           modelId = modelId,
           url = url,
-          targetFile = File(modelsDir, "$modelId.litertlm"),
-          tempFile = File(modelsDir, "$modelId.litertlm.tmp"),
+          targetFile = LlmModelFiles.modelFile(context, modelId),
+          tempFile = LlmModelFiles.partialFile(context, modelId),
           sha256 = sha256,
           isCancelled = { cancelDownloadRequested },
           onProgress = onProgress
@@ -414,15 +415,7 @@ class GemmaInferenceClient(private val context: Context) {
       loadedModelId = null
     }
 
-    val modelFile = File(context.filesDir, "models/$modelId.litertlm")
-    if (modelFile.exists()) {
-      modelFile.delete()
-    }
-    // Also clean up any partial downloads
-    val tempFile = File(context.filesDir, "models/$modelId.litertlm.tmp")
-    if (tempFile.exists()) {
-      tempFile.delete()
-    }
+    LlmModelFiles.delete(context, modelId)
   }
 
   /**
@@ -437,14 +430,14 @@ class GemmaInferenceClient(private val context: Context) {
    * Check if a model file exists on disk.
    */
   fun isModelFileDownloaded(modelId: String): Boolean {
-    return File(context.filesDir, "models/$modelId.litertlm").exists()
+    return LlmModelFiles.modelFile(context, modelId).exists()
   }
 
   /**
    * Get the file path for a downloaded model.
    */
   fun getModelFilePath(modelId: String): String {
-    return File(context.filesDir, "models/$modelId.litertlm").absolutePath
+    return LlmModelFiles.modelFile(context, modelId).absolutePath
   }
 
   // -------------------------------------------------------------------------

@@ -66,6 +66,7 @@ final class VisionClient {
       "backgroundRemoval": backgroundRemovalAvailability,
       "imageLabeling": imageLabelingAvailability,
       "textRecognition": ["status": "available"],
+      "faceCheck": imageLabelingAvailability,
     ]
   }
 
@@ -77,6 +78,9 @@ final class VisionClient {
     }
     if features.contains("image-labeling") {
       try requireImageLabeling()
+    }
+    if features.contains("face-check") && Self.isSimulator {
+      throw contractError("DEVICE_NOT_SUPPORTED", "Face checks require a physical iOS device")
     }
   }
 

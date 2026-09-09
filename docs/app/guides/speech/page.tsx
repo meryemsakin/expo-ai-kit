@@ -11,7 +11,6 @@ export const metadata = createPageMetadata(
 );
 
 const headings = [
-  { id: "overview", text: "Overview", level: 2 },
   { id: "enable", text: "Enable Speech", level: 2 },
   { id: "availability", text: "Availability & Preparation", level: 2 },
   { id: "live", text: "Live Transcription", level: 2 },
@@ -33,29 +32,7 @@ export default function SpeechPage() {
 
       <BadgeGroup platforms={["ios", "android", "new"]} />
 
-      <h2 id="overview">Overview</h2>
-      <p>
-        expo-ai-kit uses each platform&apos;s own speech engine: Apple&apos;s{" "}
-        <strong>SpeechAnalyzer</strong> on iOS 26+ and{" "}
-        <strong>ML Kit GenAI Speech Recognition</strong> on Android 12+ (which
-        upgrades itself to Gemini Nano on devices that have it). Both run
-        entirely on the device, so transcription works offline and audio never
-        leaves the phone.
-      </p>
-      <ul>
-        <li>
-          <code>streamTranscription()</code>, live microphone transcription
-          with updates that revise as the engine hears more
-        </li>
-        <li>
-          <code>transcribe()</code>, a complete transcript from an audio file
-          (WAV, M4A, MP3, …)
-        </li>
-        <li>
-          Explicit availability, model preparation, locales, and typed errors,
-          the same lifecycle style as the rest of the library
-        </li>
-      </ul>
+      <p>Requires iOS 26+ (Apple SpeechAnalyzer) or Android 12+ (ML Kit Speech Recognition).</p>
 
       <h2 id="enable">Enable speech</h2>
       <p>

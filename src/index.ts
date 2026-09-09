@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import ExpoAiKitModule, { type NativeGenerationConfig } from './ExpoAiKitModule';
 import { isValidEmbeddingTask, EMBEDDING_TASKS, normalizeLanguageTag } from './embedding';
 import { parseNativeErrorMessage } from './errors';
+import { classifyFaces, resolveCheckFaceOptions, validateFaceImage } from './face';
 import {
   ANDROID_EMBEDDING_MODEL,
   composeAndroidEmbeddingRevision,
@@ -33,6 +34,7 @@ import {
   buildToolArgsRepair,
   formatToolResult,
 } from './tools';
+import type { CheckFaceOptions, FaceCheckResult } from './types';
 import {
   LLMMessage,
   LLMSendOptions,
@@ -215,6 +217,8 @@ function toNativeGeneration(g?: GenerationConfig): NativeGenerationConfig {
  *   {@link prepareBuiltInModel} before the first generation; generating before
  *   it completes throws a typed MODEL_NOT_DOWNLOADED error.
  * - Unsupported platforms (web, etc.): always `false`.
+ * - Builds without the config plugin's `llm` option: always `false` (this
+ *   call never throws; the generation calls throw LLM_NOT_ENABLED instead).
  *
  * `false` does not rule out downloadable models, see
  * {@link getRecommendedModel} / {@link setModel} for the LiteRT-LM path.
@@ -232,6 +236,10 @@ export async function isAvailable(): Promise<boolean> {
  * On Android this downloads the AICore-managed ML Kit model when needed. On
  * iOS there is no app-managed download; the call validates that Apple
  * Foundation Models is available. Resolves immediately when already ready.
+ *
+ * @throws {ModelError} LLM_NOT_ENABLED when the app was built without the
+ *   config plugin's `llm` option (every generation, activation, and download
+ *   call throws it); DEVICE_NOT_SUPPORTED / DOWNLOAD_FAILED from the platform.
  */
 export async function prepareBuiltInModel(): Promise<void> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
@@ -1108,8 +1116,9 @@ export async function getDownloadableModels(): Promise<DownloadableModel[]> {
   return Promise.all(
     platformModels.map(async (entry) => {
       // Await: on iOS this bridges as a Promise (reads actor state); on Android
-      // it's synchronous and awaiting a plain value is a no-op.
-      const status = await ExpoAiKitModule.getDownloadableModelStatus(entry.id);
+      // it's synchronous and awaiting a plain value is a no-op. Typed so a
+      // build without the `llm` option rejects with LLM_NOT_ENABLED.
+      const status = await wrapNative(() => ExpoAiKitModule.getDownloadableModelStatus(entry.id));
       return {
         id: entry.id,
         name: entry.name,
@@ -1699,6 +1708,25 @@ export function streamTranscription(
 // cross the bridge.
 
 const VISION_MODEL_IDS = new Set(['apple-vision', 'mlkit-vision']);
+
+/**
+ * Check a local photo for one dominant face, using the expo-face-check API.
+ * Enable `vision` on Android and rebuild; no model download or permissions required.
+ * Bounds use upright image pixels. LOW_QUALITY checks image resolution only.
+ * Independent of generation and speech; multiple photos may be checked concurrently.
+ */
+export async function checkFace(
+  imageUri: string,
+  options?: CheckFaceOptions
+): Promise<FaceCheckResult> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    throw visionUnsupportedPlatformError('checkFace');
+  }
+  const uri = validateFaceImage(imageUri, Platform.OS);
+  const resolved = resolveCheckFaceOptions(options);
+  const detected = await wrapNative(() => ExpoAiKitModule.detectFaces(uri, resolved.minPixelSize));
+  return classifyFaces(detected, resolved);
+}
 
 function visionUnsupportedPlatformError(fn: string): ModelError {
   return new ModelError('DEVICE_NOT_SUPPORTED', '', `${fn}() is only available on iOS and Android`);

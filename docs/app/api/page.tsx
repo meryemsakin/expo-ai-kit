@@ -24,6 +24,7 @@ const headings = [
   { id: "removebackground", text: "removeBackground()", level: 3 },
   { id: "labelimage", text: "labelImage()", level: 3 },
   { id: "recognizetext", text: "recognizeText()", level: 3 },
+  { id: "checkface", text: "checkFace()", level: 3 },
   { id: "vision-lifecycle", text: "Vision lifecycle", level: 3 },
   { id: "embeddings", text: "Embeddings", level: 2 },
   { id: "embed", text: "embed()", level: 3 },
@@ -71,8 +72,8 @@ export default function APIReferencePage() {
       <h2 id="llm">LLM</h2>
       <p>
         Generate and stream text with the OS model or a downloaded one, get
-        typed objects back, or let the model call your functions. Text needs no
-        configuration. See the{" "}
+        typed objects back, or let the model call your functions. Requires the{" "}
+        <code>llm</code> <a href="#config-plugin" className="text-accent hover:underline">build option</a>. See the{" "}
         <a href="/guides/llm" className="text-accent hover:underline">
           LLM guide
         </a>
@@ -82,7 +83,9 @@ export default function APIReferencePage() {
       <h3 id="isavailable">isAvailable()</h3>
       <p>
         Check whether the current device supports its built-in on-device model.
-        Returns <code>false</code> on unsupported platforms and devices. On
+        Returns <code>false</code> on unsupported platforms and devices, and in
+        apps built without the <code>llm</code> option (it never throws; the
+        generation calls throw <code>LLM_NOT_ENABLED</code> instead). On
         Android, <code>true</code> means ML Kit is supported even when its
         OS-managed model still needs to download.
       </p>
@@ -330,7 +333,7 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
         Background removal, image labels, and text recognition (OCR) with Apple
         Vision on iOS and ML Kit on Android. Android is opt-in via the config
         plugin&apos;s <code>vision</code> flag; iOS needs nothing. Independent of
-        the LLM and speech guards. Every call takes an image as{" "}
+        the LLM and speech guards. Image operations take an image as{" "}
         <code>{`{ uri }`}</code> (a <code>file://</code> URI or path). See the{" "}
         <a href="/guides/vision" className="text-accent hover:underline">
           Vision guide
@@ -416,11 +419,28 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
 }>`}
       </CodeBlock>
 
+      <h3 id="checkface">checkFace()</h3>
+      <p>Check a local image for one dominant face. No preparation or download needed. Enable vision on Android and rebuild. See <a href="/guides/face-check">the face-check guide</a>.</p>
+      <CodeBlock language="typescript">{`function checkFace(imageUri: string, options?: CheckFaceOptions): Promise<FaceCheckResult>
+
+type FaceCheckStatus = 'READY' | 'NO_FACE' | 'MULTIPLE_FACES' | 'LOW_QUALITY';
+interface CheckFaceOptions {
+  minPixelSize?: number;   // Minimum image width × height; default 500_000
+  areaThreshold?: number; // Strict area/largestArea threshold, 0–1; default 0.2
+}
+interface FaceBounds { x: number; y: number; width: number; height: number }
+interface FaceCheckResult {
+  status: FaceCheckStatus;
+  faceCount: number;               // Dominant faces only
+  dominantFaceBounds?: FaceBounds; // READY only; upright image pixels, top-left origin
+}`}</CodeBlock>
+      <p>The URI string and pixel bounds preserve expo-face-check compatibility. LOW_QUALITY checks image resolution only. Runtime failures use IMAGE_DECODE_FAILED, VISION_FAILED, VISION_NOT_ENABLED, or DEVICE_NOT_SUPPORTED.</p>
+
       <h3 id="vision-lifecycle">Vision lifecycle</h3>
       <p>
         Per-feature availability and the one call that downloads. Android&apos;s
         segmentation and OCR models are Google Play services modules installed
-        by <code>prepareVision()</code>; the label model is bundled; iOS ships
+        by <code>prepareVision()</code>; the label and face models are bundled; iOS ships
         everything with the OS and resolves immediately.
       </p>
       <CodeBlock language="typescript">
@@ -428,6 +448,7 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
+  faceCheck: VisionFeatureAvailability;
 }>
 // VisionFeatureAvailability =
 //   | { status: 'available' }
@@ -435,7 +456,7 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
 //   | { status: 'unavailable'; reason: 'platform' | 'os-version' | 'device' | 'not-enabled' }
 
 function prepareVision(options?: {
-  features?: ('background-removal' | 'image-labeling' | 'text-recognition')[]; // default: all
+  features?: ('background-removal' | 'image-labeling' | 'text-recognition' | 'face-check')[]; // default: all
   languages?: string[];                      // OCR script models to fetch (Android)
   onProgress?: (progress: number) => void;   // 0–1
 }): Promise<void>
@@ -760,17 +781,20 @@ const { text } = await generateText({
       {/* ------------------------------------------------------------------ */}
       <h2 id="config-plugin">Config Plugin</h2>
       <p>
-        The LLM works with no configuration. Speech, vision (Android), and Android
-        embeddings are opt-in build flags so apps that don&apos;t use them pay
-        nothing in size or permissions. Turning a flag on requires a new native
-        build (dev client / EAS, not an OTA update); without it the matching
-        APIs throw a typed <code>*_NOT_ENABLED</code> error.
+        All options are off by default. An app compiles and ships only the
+        native code, models, and permissions for the options it turns on, so
+        apps that don&apos;t use a feature pay nothing for it. Without an
+        option the matching APIs throw a typed <code>*_NOT_ENABLED</code> error
+        (and <code>isAvailable()</code> returns <code>false</code> for the LLM).
+        Changing an option requires a new native build (dev client / EAS, not
+        an OTA update).
       </p>
       <CodeBlock language="json" filename="app.json">
         {`{
   "expo": {
     "plugins": [
       ["expo-ai-kit", {
+        "llm": true,
         "speech": true,             // or { "microphonePermission": "…" }
         "vision": true,
         "androidEmbeddings": true
@@ -789,14 +813,19 @@ const { text } = await generateText({
         </thead>
         <tbody>
           <tr>
+            <td><code>llm</code></td>
+            <td><code>sendMessage</code>, <code>streamMessage</code>, <code>generateObject</code>, <code>generateText</code>, the model catalog, the AI SDK provider</td>
+            <td>LiteRT-LM runtime for downloadable models (about 30 MB of iOS arm64 code, 21 MB on Android) and the ML Kit Prompt API client; Android <code>minSdkVersion</code> 26. Built-in models are OS-provided.</td>
+          </tr>
+          <tr>
             <td><code>speech</code></td>
             <td><code>transcribe</code>, <code>streamTranscription</code>, speech lifecycle</td>
             <td>Android ML Kit speech backend + <code>RECORD_AUDIO</code>; iOS <code>NSMicrophoneUsageDescription</code></td>
           </tr>
           <tr>
             <td><code>vision</code></td>
-            <td>Android <code>removeBackground</code>, <code>labelImage</code>, <code>recognizeText</code></td>
-            <td>ML Kit vision clients + bundled label model (no permissions). iOS needs no flag.</td>
+            <td>Android <code>removeBackground</code>, <code>labelImage</code>, <code>recognizeText</code>, <code>checkFace</code></td>
+            <td>ML Kit vision clients + bundled face and label models (no permissions). iOS needs no option.</td>
           </tr>
           <tr>
             <td><code>androidEmbeddings</code></td>
@@ -805,6 +834,15 @@ const { text } = await generateText({
           </tr>
         </tbody>
       </table>
+      <p>
+        The plugin writes one <code>expoAiKit.*</code> key per option to{" "}
+        <code>android/gradle.properties</code> and, for <code>llm</code>, to{" "}
+        <code>ios/Podfile.properties.json</code>; the library&apos;s Gradle file
+        and podspec read them at build time. A React Native app without Expo
+        prebuild sets the same keys by hand (or <code>$ExpoAiKitLLM = true</code>{" "}
+        in the Podfile), adds <code>RECORD_AUDIO</code> and the microphone usage
+        string itself for speech, then runs <code>pod install</code> and rebuilds.
+      </p>
 
       {/* ------------------------------------------------------------------ */}
       <h2 id="types">Types</h2>
@@ -902,6 +940,7 @@ type VisionAvailability = {
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
+  faceCheck: VisionFeatureAvailability;
 };
 type PrepareVisionOptions = {
   features?: VisionFeature[]; languages?: string[]; onProgress?: (progress: number) => void;
@@ -977,7 +1016,8 @@ try {
         <code>INFERENCE_OOM</code>, <code>INFERENCE_FAILED</code>,{" "}
         <code>INFERENCE_BUSY</code>, <code>INFERENCE_CANCELLED</code>,{" "}
         <code>MODEL_LOAD_FAILED</code>, <code>DEVICE_NOT_SUPPORTED</code>,{" "}
-        <code>EMBEDDINGS_NOT_ENABLED</code>, <code>LANGUAGE_NOT_SUPPORTED</code>,{" "}
+        <code>LLM_NOT_ENABLED</code>, <code>EMBEDDINGS_NOT_ENABLED</code>,{" "}
+        <code>LANGUAGE_NOT_SUPPORTED</code>,{" "}
         <code>SPEECH_BUSY</code>, <code>SPEECH_NOT_ENABLED</code>,{" "}
         <code>MIC_PERMISSION_DENIED</code>, <code>AUDIO_DECODE_FAILED</code>,{" "}
         <code>TRANSCRIPTION_FAILED</code>, <code>VISION_NOT_ENABLED</code>,{" "}
@@ -985,10 +1025,10 @@ try {
         <code>VISION_FAILED</code>, <code>UNKNOWN</code>.
       </p>
       <p>
-        The <code>*_NOT_ENABLED</code> codes mean the Android app was built
-        without the matching config-plugin flag (<code>androidEmbeddings</code>,{" "}
-        <code>speech</code>, <code>vision</code>), enabling one requires a new
-        native build. <code>LANGUAGE_NOT_SUPPORTED</code> means no on-device
+        The <code>*_NOT_ENABLED</code> codes mean the app was built without the
+        matching config-plugin option (<code>llm</code>, <code>speech</code>,{" "}
+        <code>vision</code>, <code>androidEmbeddings</code>); enabling one
+        requires a new native build. <code>LANGUAGE_NOT_SUPPORTED</code> means no on-device
         model handles the requested language for embeddings, speech, or text
         recognition (the message names it; there is never a silent fall-back).
         Vision adds <code>IMAGE_DECODE_FAILED</code> (unreadable input),{" "}

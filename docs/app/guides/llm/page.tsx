@@ -13,7 +13,7 @@ export const metadata = createPageMetadata(
 
 const headings = [
   { id: "overview", text: "Overview", level: 2 },
-  { id: "typed-output-and-agents", text: "Typed Output and Agents", level: 2 },
+  { id: "enable", text: "Enable the LLM", level: 2 },
   { id: "availability", text: "Availability & Preparation", level: 2 },
   { id: "generate", text: "Generate", level: 2 },
   { id: "stream", text: "Stream", level: 2 },
@@ -37,10 +37,10 @@ export default function LlmPage() {
 
       <h2 id="overview">Overview</h2>
       <p>
-        The LLM is the capability that needs no configuration. By default it runs
-        on the OS model, <strong>Apple Foundation Models</strong> on iOS 26+
-        and the <strong>ML Kit Prompt API</strong> on supported Android devices,
-        and you can switch to a downloadable Gemma, Qwen, or Phi model with{" "}
+        By default the LLM runs on the OS model, <strong>Apple Foundation
+        Models</strong> on iOS 26+ and the <strong>ML Kit Prompt API</strong>{" "}
+        on supported Android devices, and you can switch to a downloadable
+        Gemma, Qwen, or Phi model with{" "}
         <code>setModel()</code> (see{" "}
         <Link href="/guides/models" className="text-accent hover:underline">
           Models
@@ -59,22 +59,28 @@ export default function LlmPage() {
         shows the patterns.
       </p>
 
-      <h2 id="typed-output-and-agents">Typed output and agents</h2>
+      <h2 id="enable">Enable the LLM</h2>
       <p>
-        Chat is the smallest thing the LLM does. The same model and the same
-        message shape also power{" "}
-        <Link href="/guides/structured-output" className="text-accent hover:underline">
-          structured output
-        </Link>
-        , where <code>generateObject()</code> returns a typed object validated
-        against your JSON Schema, and{" "}
-        <Link href="/guides/tool-calling" className="text-accent hover:underline">
-          tool calling
-        </Link>
-        , where <code>generateText()</code> runs a bounded agent loop: the
-        model calls functions you provide, gets the results back, and answers
-        from them. Both run on the device, with the same availability and
-        preparation steps as below.
+        Like every capability, the LLM is opt-in at build time. Turn it on in
+        your app config and make a new native build (dev client or EAS, not an
+        OTA update):
+      </p>
+      <CodeBlock language="json" filename="app.json">
+        {`{
+  "expo": {
+    "plugins": [["expo-ai-kit", { "llm": true }]]
+  }
+}`}
+      </CodeBlock>
+      <p>
+        The option links the LiteRT-LM runtime that runs downloadable models
+        (about 30 MB of iOS arm64 code, 21 MB on Android) and, on Android, the
+        ML Kit Prompt API client, which needs <code>minSdkVersion</code> 26. The
+        built-in models are OS-provided and add nothing further. Without the
+        option, <code>isAvailable()</code> returns <code>false</code> and the
+        generation, activation, and download calls throw a typed{" "}
+        <code>LLM_NOT_ENABLED</code> error; an app using only speech, vision, or
+        embeddings ships none of this.
       </p>
 
       <h2 id="availability">Availability &amp; preparation</h2>

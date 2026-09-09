@@ -2,10 +2,12 @@ const {
   createRunOncePlugin,
   withGradleProperties,
   withInfoPlist,
+  withPodfileProperties,
   AndroidConfig,
 } = require('expo/config-plugins');
 const pkg = require('./package.json');
 
+const LLM_PROP_KEY = 'expoAiKit.llm';
 const EMBEDDINGS_PROP_KEY = 'expoAiKit.androidEmbeddings';
 const SPEECH_PROP_KEY = 'expoAiKit.speech';
 const VISION_PROP_KEY = 'expoAiKit.vision';
@@ -15,7 +17,28 @@ const DEFAULT_MIC_PERMISSION =
 /**
  * expo-ai-kit config plugin.
  *
+ * Every option is off by default: an app compiles and ships only the
+ * native code for the options it enables, and the matching JS APIs throw a
+ * typed *_NOT_ENABLED error otherwise. Each option writes one gradle property
+ * (android/gradle.properties) and, for iOS, one Podfile.properties.json key
+ * that the library's build.gradle and podspec read; bare React Native apps set
+ * the same keys by hand. Changing an option requires a new native build (dev
+ * client / EAS, not OTA).
+ *
  * Options:
+ * - `llm` (boolean, default `false`): enable text generation, structured
+ *   output, tool calling, and the model catalog (sendMessage, streamMessage,
+ *   generateObject, generateText, setModel, downloadModel, and the AI SDK
+ *   provider). Off by default because it links the LiteRT-LM runtime for
+ *   downloadable models (~30 MB of arm64 code on iOS, ~21 MB on Android) and,
+ *   on Android, the ML Kit GenAI Prompt API client, which raises minSdkVersion
+ *   to 26. On, prebuild writes `expoAiKit.llm` to gradle.properties and
+ *   Podfile.properties.json; Android compiles the library's llm source set and
+ *   iOS downloads and links the LiteRT-LM xcframework on pod install. Without
+ *   the option, isAvailable() is false and the generation, activation, and
+ *   download calls throw LLM_NOT_ENABLED. Built-in models (Apple Foundation
+ *   Models, ML Kit Prompt API) are OS-provided and add nothing further.
+ *
  * - `androidEmbeddings` (boolean, default `false`): compile the Android
  *   embedding backend (EmbeddingGemma 300M via MediaPipe TextEmbedder) into
  *   the app. Off by default, zero bytes added to the APK, and Android
@@ -42,7 +65,7 @@ const DEFAULT_MIC_PERMISSION =
  *
  * - `vision` (boolean, default `false`): enable on-device vision on Android,
  *   removeBackground() (ML Kit Subject Segmentation), labelImage() (ML Kit
- *   Image Labeling), and recognizeText() (ML Kit Text Recognition v2). Off by
+ *   Image Labeling), checkFace() (bundled Face Detection), and recognizeText() (ML Kit Text Recognition v2). Off by
  *   default because it adds the ML Kit clients and the bundled label model to
  *   the APK. On, prebuild writes a gradle property that compiles the library's
  *   vision source set and adds the ML Kit dependencies; the segmentation and
@@ -53,9 +76,10 @@ const DEFAULT_MIC_PERMISSION =
  *   already has access to).
  *
  * Usage in app.json / app.config.js:
- *   "plugins": [["expo-ai-kit", { "androidEmbeddings": true, "speech": true, "vision": true }]]
+ *   "plugins": [["expo-ai-kit", { "llm": true, "speech": true, "vision": true, "androidEmbeddings": true }]]
  */
 const withExpoAiKit = (config, props = {}) => {
+  const llm = props.llm === true;
   const androidEmbeddings = props.androidEmbeddings === true;
   const speech =
     props.speech === true || (typeof props.speech === 'object' && props.speech !== null);
@@ -71,7 +95,8 @@ const withExpoAiKit = (config, props = {}) => {
     c.modResults = c.modResults.filter((item) => {
       if (
         item.type === 'property' &&
-        (item.key === EMBEDDINGS_PROP_KEY ||
+        (item.key === LLM_PROP_KEY ||
+          item.key === EMBEDDINGS_PROP_KEY ||
           item.key === SPEECH_PROP_KEY ||
           item.key === VISION_PROP_KEY)
       ) {
@@ -84,6 +109,15 @@ const withExpoAiKit = (config, props = {}) => {
       }
       return true;
     });
+    if (llm) {
+      c.modResults.push(
+        {
+          type: 'comment',
+          value: 'expo-ai-kit: compile the opt-in text backend (ML Kit Prompt API + LiteRT-LM)',
+        },
+        { type: 'property', key: LLM_PROP_KEY, value: 'true' }
+      );
+    }
     if (androidEmbeddings) {
       c.modResults.push(
         {
@@ -110,6 +144,17 @@ const withExpoAiKit = (config, props = {}) => {
         },
         { type: 'property', key: VISION_PROP_KEY, value: 'true' }
       );
+    }
+    return c;
+  });
+
+  // ios/Podfile.properties.json is read by ExpoAiKit.podspec at pod install.
+  // Always visit it so turning the option off removes a stale key.
+  config = withPodfileProperties(config, (c) => {
+    if (llm) {
+      c.modResults[LLM_PROP_KEY] = 'true';
+    } else {
+      delete c.modResults[LLM_PROP_KEY];
     }
     return c;
   });

@@ -1,13 +1,49 @@
 # Changelog
 
-## Unreleased
+## 0.16.0
+
+### Added
+
+- `checkFace(imageUri, options?)`: the on-device photo check from expo-face-check, under Vision.
+  Keeps READY / NO_FACE / MULTIPLE_FACES / LOW_QUALITY, the 500,000-pixel floor, strict area
+  threshold, and upright pixel bounds. iOS uses Apple Vision; Android bundles ML Kit Face
+  Detection behind the existing `vision` option. No model download or added permission.
+- `faceCheck` availability and the `face-check` preparation feature (a no-op for bundled models).
 
 ### Changed
 
-- **Docs:** typed JSON output and tool calling (the on-device agent loop) are presented up front in
-  the README, docs landing, sidebar, and LLM guide instead of at the end of the LLM section, with an
-  "offline assistant" recipe (speech feeds an agent). The maintainer attribution lines are gone; the
-  project is credited as open source only.
+- **Breaking: the LLM is opt-in, like every other capability.** Text generation (Apple
+  Foundation Models, ML Kit Prompt API, and downloadable LiteRT-LM models) now compiles only
+  with `["expo-ai-kit", { "llm": true }]`. Apps that generate text add the option and make a new
+  native build; without it `isAvailable()` is `false`, `getBuiltInModels()` reports the built-in
+  as unavailable, and the generation, activation, and download calls throw the new
+  `LLM_NOT_ENABLED` error (stop, cancel, and unload are no-ops; `deleteModel()` still reclaims
+  files). Apps that use only speech, vision, or embeddings no longer ship the LiteRT-LM runtime
+  (about 30 MB of iOS arm64 code, 21 MB on Android) or the ML Kit GenAI client, and on Android
+  follow their own `minSdkVersion` again (`llm` and `speech` require 26). Bare React Native sets
+  `expoAiKit.llm=true` in `android/gradle.properties` and `"expoAiKit.llm": "true"` in
+  `ios/Podfile.properties.json` (or `$ExpoAiKitLLM = true` in the Podfile). The podspec reads
+  the property and skips the xcframework download when the option is off.
+- CI compiles the example both with every option and with none (the default build).
+- Shorter README, homepage, installation, and platform guides, with React Native named first.
+  Capability demos move to Examples; detailed API material remains in the reference.
+- Android uses the Expo module Gradle plugin instead of the legacy `ExpoModulesCorePlugin.gradle`
+  script.
+- Migrating from expo-face-check uses expo-ai-kit's typed runtime errors and local-only image
+  input. Android vision now also bundles the face detector.
+
+### Fixed
+
+- Android: repeated `removeBackground()` calls crashed the process inside Play services'
+  subject-segmentation library. The library keeps using the input bitmap's pixel memory after
+  its task resolves, so the input is now kept alive until a later segmentation completes, and
+  the native call is serialized.
+
+## 0.15.1
+
+### Changed
+
+- Docs presented typed JSON and tool calling earlier in the LLM section.
 
 ## 0.15.0
 

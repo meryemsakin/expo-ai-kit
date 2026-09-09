@@ -10,24 +10,42 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.functions.Coroutine
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.cancel
 
 class ExpoAiKitModule : Module() {
 
-  // Existing ML Kit client -- unchanged
-  private val promptClient by lazy { PromptApiClient() }
-
-  // Gemma client -- lazy-initialized with app context
-  private val gemmaClient by lazy {
-    GemmaInferenceClient(appContext.reactContext ?: throw RuntimeException("React context not available"))
+  // Optional text backend (ML Kit Prompt API + LiteRT-LM). Present only when
+  // the app was prebuilt with ["expo-ai-kit", { "llm": true }], which compiles
+  // android/src/llm and adds the genai-prompt and litertlm-android dependencies.
+  // Resolved by reflection so this module compiles without them on the
+  // classpath (kept by consumer-rules.pro under R8). Without it, isAvailable()
+  // is false and every other generation call throws LLM_NOT_ENABLED.
+  private val llmBackend: LlmBackend? by lazy {
+    try {
+      Class.forName("expo.modules.aikit.llm.AndroidLlmBackend")
+        .getDeclaredConstructor(Context::class.java, LlmEventSink::class.java)
+        .newInstance(
+          appContext.reactContext ?: throw RuntimeException("React context not available"),
+          LlmEventSink { name, payload -> sendEvent(name, payload) }
+        )
+        as LlmBackend
+    } catch (e: ReflectiveOperationException) {
+      null
+    } catch (e: LinkageError) {
+      null
+    }
   }
+
+  private fun requireLlmBackend(): LlmBackend =
+    llmBackend ?: throw RuntimeException(
+      "LLM_NOT_ENABLED:mlkit:" +
+        "The LLM is opt-in. Add [\"expo-ai-kit\", { \"llm\": true }] to your app config plugins " +
+        "and make a new native build (dev client / EAS, not OTA)."
+    )
 
   // Embedding asset lifecycle (download/status/delete). Always available, it
   // has no MediaPipe dependency; only the inference backend below is optional.
@@ -116,27 +134,11 @@ class ExpoAiKitModule : Module() {
         "Enabling adds ~25 MB to the APK; the ~184 MB EmbeddingGemma model then downloads via prepareEmbeddingModel()."
     )
 
-  private val activeStreamJobs = mutableMapOf<String, Job>()
-  private val streamScope = CoroutineScope(Dispatchers.IO)
-
   // Android's Expo event bridge retains each event until JS consumes it. The
   // download loop reads 8KB chunks, so emitting one event per chunk overflows
   // ART's global JNI reference table on large model downloads.
   private var lastDownloadProgressAt = 0L
   private var lastDownloadProgress = -1.0
-
-  // Active model routing: "mlkit" (default) or a downloadable model ID
-  private var activeModelId: String = "mlkit"
-
-  /**
-   * Contract string for stream error events: pass through messages already in
-   * "CODE:modelId:reason" form; wrap anything else as INFERENCE_FAILED.
-   */
-  private fun streamErrorContract(e: Throwable, modelId: String): String {
-    val message = e.message ?: e.toString()
-    return if (Regex("^[A-Z][A-Z_]*:").containsMatchIn(message)) message
-    else "INFERENCE_FAILED:$modelId:$message"
-  }
 
   override fun definition() = ModuleDefinition {
     Name("ExpoAiKit")
@@ -144,136 +146,39 @@ class ExpoAiKitModule : Module() {
     Events("onStreamToken", "onDownloadProgress", "onModelStateChange", "onTranscriptionUpdate")
 
     // ==================================================================
-    // Existing inference API -- ML Kit path completely untouched
+    // Text generation (ML Kit Prompt API + LiteRT-LM, opt-in)
     // ==================================================================
+    // Compiled only with ["expo-ai-kit", { "llm": true }]; without the flag
+    // the backend is null: isAvailable() reports false, getBuiltInModels()
+    // reports the built-in as unavailable, and the generation, activation, and
+    // download calls throw LLM_NOT_ENABLED. stop/cancel/unload stay lenient
+    // no-ops, and deleteModel() still reclaims a model downloaded by an earlier
+    // build that had the flag on.
 
     Function("isAvailable") {
-      promptClient.isAvailableBlocking()
+      llmBackend?.isBuiltInAvailable() ?: false
     }
 
     AsyncFunction("prepareBuiltInModel") Coroutine { ->
-      promptClient.prepareModel()
+      requireLlmBackend().prepareBuiltInModel()
     }
 
     // sessionId is accepted for API parity with iOS. Non-streaming generation on
     // Android isn't separately cancellable (best-effort), so the id is unused here.
     AsyncFunction("sendMessage") Coroutine { messages: List<Map<String, Any>>, fallbackSystemPrompt: String, sessionId: String ->
-      // Extract system prompt from messages, or use fallback
-      val systemPrompt = messages
-        .firstOrNull { it["role"] == "system" }
-        ?.get("content") as? String
-        ?: fallbackSystemPrompt.ifBlank { "You are a helpful, friendly assistant." }
-
-      // Build conversation history prompt from all non-system messages
-      // On-device models are stateless, so we must include full history in each request
-      val nonSystemMessages = messages.filter { it["role"] != "system" }
-
-      // Route to active model
-      val text = if (activeModelId == "mlkit") {
-        // ML Kit: use role-prefixed format since it has no conversation API
-        val conversationPrompt = nonSystemMessages
-          .joinToString("\n") { msg ->
-            val role = (msg["role"] as? String ?: "user").uppercase()
-            val content = msg["content"] as? String ?: ""
-            "$role: $content"
-          } + "\nASSISTANT:"
-        promptClient.generateText(conversationPrompt, systemPrompt)
-      } else {
-        // Gemma/LiteRT-LM: pass raw content, the Conversation API handles
-        // turn formatting internally. Adding "USER:"/"ASSISTANT:" markers
-        // causes double-formatting and garbled output.
-        val conversationPrompt = nonSystemMessages
-          .joinToString("\n") { msg ->
-            msg["content"] as? String ?: ""
-          }
-        gemmaClient.generateText(conversationPrompt, systemPrompt)
-      }
-      mapOf("text" to text)
+      requireLlmBackend().sendMessage(messages, fallbackSystemPrompt)
     }
 
     AsyncFunction("startStreaming") Coroutine { messages: List<Map<String, Any>>, fallbackSystemPrompt: String, sessionId: String ->
-      // Extract system prompt from messages, or use fallback
-      val systemPrompt = messages
-        .firstOrNull { it["role"] == "system" }
-        ?.get("content") as? String
-        ?: fallbackSystemPrompt.ifBlank { "You are a helpful, friendly assistant." }
-
-      val nonSystemMessages = messages.filter { it["role"] != "system" }
-
-      // Fail the native promise before launching a detached stream so JS can
-      // reject cleanly instead of resolving with an unexplained empty string.
-      if (activeModelId == "mlkit") {
-        promptClient.requireAvailable()
-      }
-
-      // Launch streaming in a coroutine that can be cancelled
-      val job = streamScope.launch {
-        val streamCallback = { token: String, accumulatedText: String, isDone: Boolean ->
-          sendEvent("onStreamToken", mapOf(
-            "sessionId" to sessionId,
-            "token" to token,
-            "accumulatedText" to accumulatedText,
-            "isDone" to isDone
-          ))
-        }
-
-        try {
-          // Route to active model
-          if (activeModelId == "mlkit") {
-            // ML Kit: use role-prefixed format since it has no conversation API
-            val conversationPrompt = nonSystemMessages
-              .joinToString("\n") { msg ->
-                val role = (msg["role"] as? String ?: "user").uppercase()
-                val content = msg["content"] as? String ?: ""
-                "$role: $content"
-              } + "\nASSISTANT:"
-            promptClient.generateTextStream(conversationPrompt, systemPrompt, streamCallback)
-          } else {
-            // Gemma/LiteRT-LM: pass raw content, Conversation API handles turn formatting
-            val conversationPrompt = nonSystemMessages
-              .joinToString("\n") { msg ->
-                msg["content"] as? String ?: ""
-              }
-            gemmaClient.generateTextStream(conversationPrompt, systemPrompt, streamCallback)
-          }
-        } catch (e: CancellationException) {
-          // User stop() has already settled the JS side (this event is ignored),
-          // but a cancellation from anywhere else (e.g. the Play-services task
-          // under ML Kit) would otherwise leave the stream hanging and the
-          // single-flight guard locked, always emit terminal done, like iOS.
-          sendEvent("onStreamToken", mapOf(
-            "sessionId" to sessionId,
-            "token" to "",
-            "accumulatedText" to "",
-            "isDone" to true
-          ))
-          throw e
-        } catch (e: Throwable) {
-          // Reject the JS stream promise with the typed contract instead of
-          // resolving successfully with silent empty or "[Error: …]" text.
-          sendEvent("onStreamToken", mapOf(
-            "sessionId" to sessionId,
-            "token" to "",
-            "accumulatedText" to "",
-            "isDone" to true,
-            "error" to streamErrorContract(e, activeModelId)
-          ))
-        }
-      }
-
-      activeStreamJobs[sessionId] = job
-      job.invokeOnCompletion { activeStreamJobs.remove(sessionId) }
+      requireLlmBackend().startStreaming(messages, fallbackSystemPrompt, sessionId)
       // Last expression must be Unit: Coroutine { } infers the JS return value
-      // from it, and a DisposableHandle would fail JS-value conversion and
-      // reject every startStreaming promise.
+      // from it, and a non-convertible value would reject every promise.
       Unit
     }
 
     AsyncFunction("stopStreaming") { sessionId: String ->
-      activeStreamJobs[sessionId]?.cancel()
-      activeStreamJobs.remove(sessionId)
-      // Last expression must be Unit, a Job? return would fail JS-value
-      // conversion and reject the promise (see startStreaming).
+      llmBackend?.stopStreaming(sessionId)
+      // Last expression must be Unit, see startStreaming.
       Unit
     }
 
@@ -379,27 +284,19 @@ class ExpoAiKitModule : Module() {
     // ==================================================================
 
     Function("getBuiltInModels") {
-      listOf(
+      llmBackend?.builtInModels() ?: listOf(
         mapOf(
           "id" to "mlkit",
           "name" to "ML Kit Prompt API",
-          "available" to promptClient.isAvailableBlocking(),
+          "available" to false,
           "platform" to "android",
-          // ML Kit doesn't expose a context window; use a reasonable default
           "contextWindow" to 4096
         )
       )
     }
 
     Function("getDownloadableModelStatus") { modelId: String ->
-      // "ready" if loaded in memory; "downloaded" if the file is on disk but not
-      // loaded (survives restarts -- use it to skip a redundant re-download);
-      // "not-downloaded" if no file is present.
-      when {
-        gemmaClient.getLoadedModelId() == modelId && gemmaClient.isModelLoaded() -> "ready"
-        gemmaClient.isModelFileDownloaded(modelId) -> "downloaded"
-        else -> "not-downloaded"
-      }
+      requireLlmBackend().downloadableModelStatus(modelId)
     }
 
     Function("getDeviceRamBytes") {
@@ -418,76 +315,15 @@ class ExpoAiKitModule : Module() {
     // ==================================================================
 
     AsyncFunction("setModel") Coroutine { modelId: String, minRamBytes: Long, backend: String, generation: Map<String, Double> ->
-      if (modelId == "mlkit") {
-        // setModel is the sole gatekeeper: activating the built-in must verify it
-        // can actually serve on this device (DEVICE_NOT_SUPPORTED / MODEL_NOT_DOWNLOADED),
-        // just as downloadable models verify their file on disk below.
-        promptClient.requireAvailable()
-        // Switch to built-in: unload any Gemma model
-        if (gemmaClient.isModelLoaded()) {
-          gemmaClient.unloadModel()
-          val previousId = activeModelId
-          if (previousId != "mlkit") {
-            sendEvent("onModelStateChange", mapOf(
-              "modelId" to previousId,
-              "status" to if (gemmaClient.isModelFileDownloaded(previousId)) "downloaded" else "not-downloaded"
-            ))
-          }
-        }
-        activeModelId = "mlkit"
-        return@Coroutine
-      }
-
-      // Downloadable model: verify file exists
-      if (!gemmaClient.isModelFileDownloaded(modelId)) {
-        throw RuntimeException("MODEL_NOT_DOWNLOADED:$modelId:Model file not found on disk")
-      }
-
-      // Emit loading state
-      sendEvent("onModelStateChange", mapOf(
-        "modelId" to modelId,
-        "status" to "loading"
-      ))
-
-      try {
-        val modelPath = gemmaClient.getModelFilePath(modelId)
-        gemmaClient.loadModel(
-          modelId, modelPath, minRamBytes, backend,
-          temperature = generation["temperature"],
-          topK = generation["topK"]?.toInt(),
-          topP = generation["topP"]
-        )
-        activeModelId = modelId
-
-        // Emit ready state
-        sendEvent("onModelStateChange", mapOf(
-          "modelId" to modelId,
-          "status" to "ready"
-        ))
-      } catch (e: Exception) {
-        // Load failed, but the file is still on disk -> "downloaded", not "not-downloaded".
-        sendEvent("onModelStateChange", mapOf(
-          "modelId" to modelId,
-          "status" to if (gemmaClient.isModelFileDownloaded(modelId)) "downloaded" else "not-downloaded"
-        ))
-        throw e
-      }
+      requireLlmBackend().setModel(modelId, minRamBytes, backend, generation)
     }
 
     Function("getActiveModel") {
-      activeModelId
+      llmBackend?.activeModel() ?: "mlkit"
     }
 
     AsyncFunction("unloadModel") Coroutine { ->
-      if (activeModelId != "mlkit" && gemmaClient.isModelLoaded()) {
-        val previousId = activeModelId
-        gemmaClient.unloadModel()
-        activeModelId = "mlkit"
-        sendEvent("onModelStateChange", mapOf(
-          "modelId" to previousId,
-          "status" to if (gemmaClient.isModelFileDownloaded(previousId)) "downloaded" else "not-downloaded"
-        ))
-      }
+      llmBackend?.unloadModel()
     }
 
     // ==================================================================
@@ -495,62 +331,24 @@ class ExpoAiKitModule : Module() {
     // ==================================================================
 
     AsyncFunction("downloadModel") Coroutine { modelId: String, url: String, sha256: String ->
-      lastDownloadProgressAt = 0L
-      lastDownloadProgress = -1.0
-      sendEvent("onModelStateChange", mapOf(
-        "modelId" to modelId,
-        "status" to "downloading"
-      ))
-
-      try {
-        gemmaClient.downloadModelFile(modelId, url, sha256) { bytesRead, totalBytes ->
-          val progress = if (totalBytes > 0) bytesRead.toDouble() / totalBytes else 0.0
-          val now = SystemClock.elapsedRealtime()
-          if (
-            progress >= 1.0 ||
-            now - lastDownloadProgressAt >= 250L ||
-            progress - lastDownloadProgress >= 0.01
-          ) {
-            lastDownloadProgressAt = now
-            lastDownloadProgress = progress
-            sendEvent("onDownloadProgress", mapOf(
-              "modelId" to modelId,
-              "progress" to progress
-            ))
-          }
-        }
-
-        // Download succeeded: file is on disk, awaiting setModel() to load it.
-        sendEvent("onModelStateChange", mapOf(
-          "modelId" to modelId,
-          "status" to "downloaded"
-        ))
-      } catch (e: Exception) {
-        // On failure, report whatever is actually on disk (a prior good copy may remain).
-        sendEvent("onModelStateChange", mapOf(
-          "modelId" to modelId,
-          "status" to if (gemmaClient.isModelFileDownloaded(modelId)) "downloaded" else "not-downloaded"
-        ))
-        throw e
-      }
+      requireLlmBackend().downloadModel(modelId, url, sha256)
     }
 
     AsyncFunction("cancelDownload") Coroutine { modelId: String ->
-      gemmaClient.cancelDownload(modelId)
+      llmBackend?.cancelDownload(modelId)
     }
 
     AsyncFunction("deleteModel") Coroutine { modelId: String ->
-      // If this model is active, switch back to mlkit first
-      if (activeModelId == modelId) {
-        activeModelId = "mlkit"
+      val backend = llmBackend
+      if (backend != null) {
+        backend.deleteModel(modelId)
+      } else {
+        // Reclaim storage from a build that had the flag on.
+        LlmModelFiles.delete(
+          appContext.reactContext ?: throw RuntimeException("React context not available"), modelId
+        )
+        sendEvent("onModelStateChange", mapOf("modelId" to modelId, "status" to "not-downloaded"))
       }
-
-      gemmaClient.deleteModelFile(modelId)
-
-      sendEvent("onModelStateChange", mapOf(
-        "modelId" to modelId,
-        "status" to "not-downloaded"
-      ))
     }
 
     // ==================================================================
@@ -676,7 +474,8 @@ class ExpoAiKitModule : Module() {
         return@Coroutine mapOf(
           "backgroundRemoval" to notEnabled,
           "imageLabeling" to notEnabled,
-          "textRecognition" to notEnabled
+          "textRecognition" to notEnabled,
+          "faceCheck" to notEnabled
         )
       }
       backend.availability()
@@ -694,6 +493,10 @@ class ExpoAiKitModule : Module() {
     AsyncFunction("getSupportedTextRecognitionLanguagesNative") Coroutine { ->
       // ML Kit has no enumeration API; the JS registry answers on Android.
       emptyList<String>()
+    }
+
+    AsyncFunction("detectFaces") Coroutine { uri: String, minPixelSize: Double ->
+      requireVisionBackend().detectFaces(uri, minPixelSize)
     }
 
     AsyncFunction("removeBackground") Coroutine {

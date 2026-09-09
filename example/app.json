@@ -36,6 +36,7 @@
       [
         "expo-ai-kit",
         {
+          "llm": true,
           "androidEmbeddings": true,
           "speech": true,
           "vision": true
