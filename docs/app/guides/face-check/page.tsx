@@ -49,6 +49,6 @@ if (result.status === 'READY') {
     <p>Install expo-ai-kit, remove expo-face-check, enable vision on Android, and make a new native build. Change the import:</p>
     <CodeBlock language="typescript">{`import { checkFace, type FaceCheckStatus } from 'expo-ai-kit';`}</CodeBlock>
     <p>The call signature, defaults, statuses, dominant-face count, and pixel bounds are retained. Runtime errors use expo-ai-kit&apos;s <Link href="/api#errors">ModelError codes</Link> instead of the old <code>ERR_*</code> codes. Unlike the old iOS loader, this API accepts only local images.</p>
-    <p>expo-ai-kit also includes its text runtimes, and the vision option includes the other Android vision clients. Migrating adds native dependencies beyond the standalone face detector and raises the Android minimum to API 26.</p>
+    <p>Every expo-ai-kit capability is opt-in at build time. Leave <code>llm</code> off and no text runtime is compiled in; the app keeps its Android minimum SDK and, beyond the same bundled face detector expo-face-check used, adds only the other ML Kit vision clients and the bundled label model that the <code>vision</code> option brings. iOS adds nothing.</p>
   </DocsLayout>;
 }

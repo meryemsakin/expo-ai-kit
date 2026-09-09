@@ -39,7 +39,9 @@ export default function ModelsPage() {
         ML Kit on Android. Android may prepare its model on first use, but it is
         not bundled into your app. <strong>Downloadable</strong> models (Gemma, Qwen,
         Phi) are fetched at runtime via LiteRT-LM and run on both platforms. You
-        switch between any of them with <code>setModel()</code>.
+        switch between any of them with <code>setModel()</code>. Both kinds
+        need the <code>llm</code> build option (see{" "}
+        <a href="/guides/llm#enable" className="text-accent hover:underline">Enable the LLM</a>).
       </p>
 
       <h2 id="built-in-vs-downloadable">Built-in vs Downloadable</h2>

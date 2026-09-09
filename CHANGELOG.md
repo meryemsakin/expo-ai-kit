@@ -12,11 +12,25 @@
 
 ### Changed
 
+- **Breaking: the LLM is opt-in, like every other capability.** Text generation (Apple
+  Foundation Models, ML Kit Prompt API, and downloadable LiteRT-LM models) now compiles only
+  with `["expo-ai-kit", { "llm": true }]`. Apps that generate text add the option and make a new
+  native build; without it `isAvailable()` is `false`, `getBuiltInModels()` reports the built-in
+  as unavailable, and the generation, activation, and download calls throw the new
+  `LLM_NOT_ENABLED` error (stop, cancel, and unload are no-ops; `deleteModel()` still reclaims
+  files). Apps that use only speech, vision, or embeddings no longer ship the LiteRT-LM runtime
+  (about 30 MB of iOS arm64 code, 21 MB on Android) or the ML Kit GenAI client, and on Android
+  follow their own `minSdkVersion` again (`llm` and `speech` require 26). Bare React Native sets
+  `expoAiKit.llm=true` in `android/gradle.properties` and `"expoAiKit.llm": "true"` in
+  `ios/Podfile.properties.json` (or `$ExpoAiKitLLM = true` in the Podfile). The podspec reads
+  the property and skips the xcframework download when the option is off.
+- CI compiles the example both with every option and with none (the default build).
 - Shorter README, homepage, installation, and platform guides, with React Native named first.
   Capability demos move to Examples; detailed API material remains in the reference.
-- Android uses the supported Expo module Gradle plugin instead of the removed legacy script.
+- Android uses the Expo module Gradle plugin instead of the legacy `ExpoModulesCorePlugin.gradle`
+  script.
 - Migrating from expo-face-check uses expo-ai-kit's typed runtime errors and local-only image
-  input. Android vision now also bundles the face detector; the library requires API 26+.
+  input. Android vision now also bundles the face detector.
 
 ## 0.15.1
 

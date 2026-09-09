@@ -45,8 +45,12 @@ export default function TroubleshootingPage() {
 
       <h3 id="isavailable-returns-false">isAvailable() returns false</h3>
       <p>
-        If <code>isAvailable()</code> consistently returns <code>false</code>,
-        check the platform-specific sections below for your device.
+        First confirm the app was built with the <code>llm</code> option:{" "}
+        <code>{`["expo-ai-kit", { "llm": true }]`}</code> in <code>app.json</code>{" "}
+        followed by a new native build. A build without it reports{" "}
+        <code>false</code> here rather than throwing, and{" "}
+        <code>sendMessage()</code> then throws <code>LLM_NOT_ENABLED</code>.
+        Otherwise, check the platform-specific sections below for your device.
       </p>
 
       <CodeBlock language="typescript" filename="debug.ts">
@@ -61,6 +65,7 @@ async function debugAvailability() {
   console.log('AI Available:', available);
 
   if (!available) {
+    console.log('Check: built with ["expo-ai-kit", { "llm": true }]?');
     if (Platform.OS === 'ios') {
       console.log('Check: Running iOS 26.0+?');
       console.log('Check: Apple Intelligence enabled in Settings?');
@@ -195,21 +200,23 @@ async function safeMessage(text: string) {
 
       <h2 id="not-enabled">*_NOT_ENABLED (feature flags)</h2>
       <p>
-        <code>SPEECH_NOT_ENABLED</code>, <code>VISION_NOT_ENABLED</code>, and{" "}
-        <code>EMBEDDINGS_NOT_ENABLED</code> mean the app was built without the
-        matching config-plugin flag. Add it to <code>app.json</code> and make a{" "}
+        <code>LLM_NOT_ENABLED</code>, <code>SPEECH_NOT_ENABLED</code>,{" "}
+        <code>VISION_NOT_ENABLED</code>, and <code>EMBEDDINGS_NOT_ENABLED</code>{" "}
+        mean the app was built without the matching config-plugin option. Every
+        capability is opt-in. Add the option to <code>app.json</code> and make a{" "}
         <strong>new native build</strong>, a JS-only OTA update cannot enable
         a feature:
       </p>
       <CodeBlock language="json" filename="app.json">
         {`{
   "expo": {
-    "plugins": [["expo-ai-kit", { "speech": true, "vision": true, "androidEmbeddings": true }]]
+    "plugins": [["expo-ai-kit", { "llm": true, "speech": true, "vision": true, "androidEmbeddings": true }]]
   }
 }`}
       </CodeBlock>
       <p>
         The availability calls report the same condition without throwing:{" "}
+        <code>isAvailable()</code> returns <code>false</code>, and{" "}
         <code>getSpeechRecognitionAvailability()</code> and{" "}
         <code>getVisionAvailability()</code> return{" "}
         <code>{`{ status: 'unavailable', reason: 'not-enabled' }`}</code>.

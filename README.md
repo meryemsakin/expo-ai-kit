@@ -13,6 +13,17 @@ Inference runs on the device, with no API key.
 npx expo install expo-ai-kit
 ```
 
+Then enable the capabilities your app uses and make a native build:
+
+```json
+{
+  "expo": {
+    "plugins": [["expo-ai-kit", { "llm": true }]]
+  }
+}
+```
+
+Every capability is opt-in at build time, so an app ships only the native code it enables.
 Requires Expo SDK 54+ (or compatible Expo modules in an existing React Native app) and a
 native development or production build. **Expo Go is not supported.** Follow
 [Get Started](https://expo-ai-kit.dev/get-started) for native setup and a working app example.
@@ -20,7 +31,7 @@ Device and OS requirements vary by feature; see [platform support](https://expo-
 
 ## First request
 
-On a device with a supported built-in text model:
+With `llm` enabled, on a device with a supported built-in text model:
 
 ```ts
 import { isAvailable, prepareBuiltInModel, sendMessage } from 'expo-ai-kit';
@@ -46,7 +57,8 @@ Android may download its model during preparation. You can also
 [Generate and stream text](https://expo-ai-kit.dev/guides/llm),
 [return structured JSON](https://expo-ai-kit.dev/guides/structured-output), or
 [let the model call your functions](https://expo-ai-kit.dev/guides/tool-calling).
-Pass the full message history on each call. One generation runs at a time.
+Pass the full message history on each call. One generation runs at a time. Enable the `llm`
+option and rebuild.
 
 ## Speech
 
@@ -76,22 +88,21 @@ model download. The API keeps `expo-face-check`'s thresholds, statuses, and pixe
 `embed`, `chunkText`, and `createVectorStore`. iOS uses the system embedding model;
 Android requires the `androidEmbeddings` option and an explicit model download.
 
-## Optional features
+## Build options
 
-Add only the features your app uses, then make a new native build. For example, to enable
-Android vision:
+Each option compiles one capability into the app. Leave an option off and its native code,
+models, and permissions stay out of the build; its functions then throw a typed `*_NOT_ENABLED`
+error. Changing an option requires a new native build.
 
-```json
-{
-  "expo": {
-    "plugins": [["expo-ai-kit", { "vision": true }]]
-  }
-}
-```
+| Option | Enables | Adds to the app |
+| --- | --- | --- |
+| `llm` | Text generation, JSON output, tool calling, model downloads, the AI SDK provider | LiteRT-LM runtime (about 30 MB of iOS arm64 code, 21 MB on Android); Android `minSdkVersion` 26 |
+| `speech` | `transcribe`, `streamTranscription` | Android ML Kit speech and microphone permission; iOS microphone usage string |
+| `vision` | Android `removeBackground`, `labelImage`, `recognizeText`, `checkFace` | ML Kit vision clients with bundled face and label models; iOS needs no option |
+| `androidEmbeddings` | Android `embed` | MediaPipe TextEmbedder (about 25 MB); the model downloads at runtime |
 
-The [config reference](https://expo-ai-kit.dev/api#config-plugin) covers all options.
-Speech adds microphone permissions; vision adds none. Enabling vision bundles the Android
-face and image-labeling models; background removal and OCR use models prepared separately.
+The [config reference](https://expo-ai-kit.dev/api#config-plugin) covers bare React Native
+setup and every option in detail.
 
 ## More
 

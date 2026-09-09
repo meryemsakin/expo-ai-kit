@@ -29,8 +29,19 @@ export default function GetStartedPage() {
       <h2 id="installation">1. Install</h2>
       <CodeBlock language="bash">{`npx expo install expo-ai-kit`}</CodeBlock>
       <p>
-        In an existing React Native app, <a href="https://docs.expo.dev/bare/installing-expo-modules/">install Expo modules</a> first.
-        On Android, set <code>minSdkVersion</code> to at least 26.
+        Enable the capabilities you use. Each option compiles that capability into the app and nothing
+        else; this example needs <code>llm</code>:
+      </p>
+      <CodeBlock language="json" filename="app.json">{`{
+  "expo": {
+    "plugins": [["expo-ai-kit", { "llm": true }]]
+  }
+}`}</CodeBlock>
+      <p>
+        In an existing React Native app, <a href="https://docs.expo.dev/bare/installing-expo-modules/">install Expo modules</a> first,
+        then set the same option by hand: <code>expoAiKit.llm=true</code> in <code>android/gradle.properties</code> and{" "}
+        <code>{`"expoAiKit.llm": "true"`}</code> in <code>ios/Podfile.properties.json</code> (or <code>$ExpoAiKitLLM = true</code> in the Podfile).
+        The <code>llm</code> and <code>speech</code> options need Android <code>minSdkVersion</code> 26.
       </p>
       <details>
         <summary>Set the Android minimum SDK in an Expo project</summary>
@@ -43,7 +54,7 @@ export default function GetStartedPage() {
       </details>
 
       <h2 id="build">2. Build the app</h2>
-      <p>The text API needs no plugin options. Run the command for your platform, or create an EAS development build.</p>
+      <p>Plugin options change native code, so run a native build for your platform, or create an EAS development build.</p>
       <CodeBlock language="bash">{`npx expo run:ios --device
 # or
 npx expo run:android --device`}</CodeBlock>

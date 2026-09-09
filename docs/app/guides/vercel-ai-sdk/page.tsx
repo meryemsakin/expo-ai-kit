@@ -64,6 +64,11 @@ export default function VercelAiSdkPage() {
         {`npx expo install expo-ai-kit
 npm i ai   # AI SDK 6+`}
       </CodeBlock>
+      <p>
+        Enable the <code>llm</code> option in the config plugin and make a native
+        build; the provider runs on the same native generation path as the core
+        API (see <a href="/guides/llm#enable" className="text-accent hover:underline">Enable the LLM</a>).
+      </p>
       <Callout type="warning" title="React Native needs the AI SDK's polyfills">
         <p>
           The AI SDK uses web platform APIs that React Native doesn&apos;t ship:{" "}

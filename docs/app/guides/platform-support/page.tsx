@@ -6,12 +6,12 @@ export const metadata = createPageMetadata("Platform support", "Device, OS, and 
 export default function PlatformSupportPage() {
   return <DocsLayout>
     <h1>Platform support</h1>
-    <p>Install in an Expo SDK 54+ app or a React Native app with compatible Expo modules. The library minimum is iOS 15.1 and Android API 26; individual features may require a newer OS or specific hardware.</p>
+    <p>Install in an Expo SDK 54+ app or a React Native app with compatible Expo modules. The library minimum is iOS 15.1 and Android API 24; the <code>llm</code> and <code>speech</code> options require Android API 26. Every capability is opt-in at build time, so requirements apply only to the options you enable. Individual features may require a newer OS or specific hardware.</p>
     <p>Use a native development or production build. Expo Go and web are not supported.</p>
     <h2 id="feature-comparison">Requirements by feature</h2>
     <table><thead><tr><th>Feature</th><th>iOS</th><th>Android</th></tr></thead><tbody>
-      <tr><td>LLM: built-in</td><td>iOS 26+, Apple Intelligence device with Apple Intelligence enabled and model ready</td><td>ML Kit Prompt API on <a href="https://developers.google.com/ml-kit/genai#prompt-device">supported devices</a></td></tr>
-      <tr><td>LLM: downloadable</td><td>LiteRT-LM; enough memory for the selected model</td><td>LiteRT-LM on arm64; enough memory for the selected model</td></tr>
+      <tr><td>LLM: built-in</td><td>Enable <code>llm</code>; iOS 26+, Apple Intelligence device with Apple Intelligence enabled and model ready</td><td>Enable <code>llm</code>; ML Kit Prompt API on <a href="https://developers.google.com/ml-kit/genai#prompt-device">supported devices</a></td></tr>
+      <tr><td>LLM: downloadable</td><td>Enable <code>llm</code>; LiteRT-LM with enough memory for the selected model</td><td>Enable <code>llm</code>; LiteRT-LM on arm64 with enough memory for the selected model</td></tr>
       <tr><td>Speech</td><td>iOS 26+, SpeechAnalyzer</td><td>Android 12+, ML Kit Speech Recognition; enable <code>speech</code></td></tr>
       <tr><td>Vision: background removal</td><td>iOS 17+, physical device</td><td>Enable <code>vision</code>; Google Play services model</td></tr>
       <tr><td>Vision: image labels</td><td>Physical device</td><td>Enable <code>vision</code>; bundled model</td></tr>

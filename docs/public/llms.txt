@@ -5,7 +5,12 @@
 
 Install: `npx expo install expo-ai-kit`. Requires Expo SDK 54+ or compatible Expo modules
 in a React Native app. Use a native development/production build, not Expo Go.
-Android minimum API 26. Device and OS support vary by feature.
+Every capability is opt-in at build time via the config plugin options `llm`, `speech`,
+`vision`, and `androidEmbeddings`; an app ships only the native code it enables, and the
+other APIs throw a typed *_NOT_ENABLED error. Changing an option needs a new native build.
+Bare React Native sets `expoAiKit.<option>=true` in android/gradle.properties and
+`"expoAiKit.llm": "true"` in ios/Podfile.properties.json. Android minimum API 24; `llm` and
+`speech` require 26. Device and OS support vary by feature.
 
 ## LLM
 
@@ -14,6 +19,8 @@ Android minimum API 26. Device and OS support vary by feature.
 - [Tool calling](https://expo-ai-kit.dev/guides/tool-calling): generateText(messages, { tools, maxSteps }).
 - [Conversations](https://expo-ai-kit.dev/guides/multi-turn): pass the complete message history on each call.
 
+Enable the llm option and rebuild; it links the LiteRT-LM runtime (about 30 MB iOS arm64,
+21 MB Android). Without it isAvailable() is false and generation throws LLM_NOT_ENABLED.
 Check isAvailable(), then await prepareBuiltInModel() before built-in generation.
 Built-ins: Apple Foundation Models on Apple Intelligence devices with iOS 26+;
 ML Kit Prompt API on supported Android devices. Downloadable models use LiteRT-LM.
@@ -36,6 +43,7 @@ Speech has its own single-flight guard (SPEECH_BUSY).
 - [Face checks](https://expo-ai-kit.dev/guides/face-check): checkFace(imageUri, { minPixelSize?, areaThreshold? }).
 
 Enable vision on Android and rebuild. No new permissions. iOS needs no plugin option.
+Vision does not need the llm option; a face-check-only app ships no text runtime.
 getVisionAvailability reports backgroundRemoval, imageLabeling, textRecognition, and faceCheck.
 prepareVision is the only call that downloads: Android segmentation and OCR use Play services
 models. Image labeling and face detection are bundled and work without preparation.
