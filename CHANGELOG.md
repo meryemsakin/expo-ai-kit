@@ -32,6 +32,13 @@
 - Migrating from expo-face-check uses expo-ai-kit's typed runtime errors and local-only image
   input. Android vision now also bundles the face detector.
 
+### Fixed
+
+- Android: repeated `removeBackground()` calls crashed the process inside Play services'
+  subject-segmentation library. The library keeps using the input bitmap's pixel memory after
+  its task resolves, so the input is now kept alive until a later segmentation completes, and
+  the native call is serialized.
+
 ## 0.15.1
 
 ### Changed

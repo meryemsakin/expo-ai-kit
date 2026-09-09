@@ -51,6 +51,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -88,6 +90,14 @@ class MlKitVisionBackend(private val context: Context) : VisionBackend {
 
   private val segmenterLock = Any()
   private var segmenter: SubjectSegmenter? = null
+  // Play services' segmentation library keeps touching the pixel memory of
+  // the bitmap it was last given after its Task resolves: recycling that
+  // bitmap right away made the *next* process() SIGSEGV inside the library
+  // (read of unmapped memory on its GL and executor threads, Galaxy A16,
+  // Sep 2026). So the native call is serialized, and the input bitmap stays
+  // alive until a later segmentation has completed; only then is it recycled.
+  private val segmentMutex = Mutex()
+  private var previousSegmenterInput: Bitmap? = null
 
   private val textClientsLock = Any()
   private val textClients = HashMap<Script, TextRecognizer>()
@@ -510,17 +520,23 @@ class MlKitVisionBackend(private val context: Context) : VisionBackend {
 
     val source = loadBitmap(uri, maxPixels)
     try {
-      val input = mlKitInput(source, SEGMENT_MAX_EDGE)
-      val ownsInput = input !== source
+      // Always hand the segmenter its own bitmap (never `source`, which is
+      // recycled below) so its lifetime can outlive this call, see segmentMutex.
+      val scaled = mlKitInput(source, SEGMENT_MAX_EDGE)
+      val input = if (scaled !== source) scaled else source.copy(Bitmap.Config.ARGB_8888, false)
       val result = try {
-        wrapping("VISION_FAILED") { client.process(InputImage.fromBitmap(input, 0)).await() }
+        segmentMutex.withLock {
+          val r = wrapping("VISION_FAILED") { client.process(InputImage.fromBitmap(input, 0)).await() }
+          // The previous input is safe to free now that a later call finished.
+          previousSegmenterInput?.recycle()
+          previousSegmenterInput = input
+          r
+        }
       } catch (e: Throwable) {
         // A client built before the module finished installing keeps a failed
         // init for the life of the process; drop it so the next call rebuilds.
         if (e !is CancellationException) discardSegmenter(client)
         throw e
-      } finally {
-        if (ownsInput) input.recycle()
       }
       val maskWidth = input.width
       val maskHeight = input.height
