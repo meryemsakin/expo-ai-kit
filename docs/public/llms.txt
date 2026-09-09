@@ -5,7 +5,7 @@
 
 Install: `npx expo install expo-ai-kit`. Requires Expo SDK 54+ or compatible Expo modules
 in a React Native app. Use a native development/production build, not Expo Go.
-Every capability is opt-in at build time via the config plugin options `llm`, `speech`,
+All features are off by default. Turn them on with the config plugin options `llm`, `speech`,
 `vision`, and `androidEmbeddings`; an app ships only the native code it enables, and the
 other APIs throw a typed *_NOT_ENABLED error. Changing an option needs a new native build.
 Bare React Native sets `expoAiKit.<option>=true` in android/gradle.properties and

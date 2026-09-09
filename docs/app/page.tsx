@@ -18,6 +18,7 @@ export default function Home() {
         You need a native build; Expo Go is not supported.
       </p>
       <CodeBlock language="bash">{`npx expo install expo-ai-kit`}</CodeBlock>
+      <p>All features are off by default. Turn on the ones you use in the config plugin, then make a native build.</p>
       <p><Link href="/get-started">Installation and first run →</Link></p>
 
       <h2 id="capabilities">What do you want to build?</h2>

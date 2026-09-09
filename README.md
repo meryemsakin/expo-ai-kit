@@ -13,7 +13,8 @@ Inference runs on the device, with no API key.
 npx expo install expo-ai-kit
 ```
 
-Then enable the capabilities your app uses and make a native build:
+**All features are off by default.** Nothing native is compiled into your app until you turn
+a feature on in your app config and make a native build. To use text generation:
 
 ```json
 {
@@ -23,7 +24,6 @@ Then enable the capabilities your app uses and make a native build:
 }
 ```
 
-Every capability is opt-in at build time, so an app ships only the native code it enables.
 Requires Expo SDK 54+ (or compatible Expo modules in an existing React Native app) and a
 native development or production build. **Expo Go is not supported.** Follow
 [Get Started](https://expo-ai-kit.dev/get-started) for native setup and a working app example.
@@ -90,9 +90,9 @@ Android requires the `androidEmbeddings` option and an explicit model download.
 
 ## Build options
 
-Each option compiles one capability into the app. Leave an option off and its native code,
-models, and permissions stay out of the build; its functions then throw a typed `*_NOT_ENABLED`
-error. Changing an option requires a new native build.
+Every option is off by default. Each one compiles a single feature into the app; leave it off
+and that feature's native code, models, and permissions stay out of the build, and its functions
+throw a typed `*_NOT_ENABLED` error. Changing an option requires a new native build.
 
 | Option | Enables | Adds to the app |
 | --- | --- | --- |

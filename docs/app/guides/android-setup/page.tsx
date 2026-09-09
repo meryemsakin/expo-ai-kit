@@ -7,7 +7,7 @@ export const metadata = createPageMetadata("Android setup", "Configure native An
 export default function AndroidSetupPage() {
   return <DocsLayout>
     <h1>Android setup</h1>
-    <p>Follow <Link href="/get-started">Get Started</Link> to install and build. Every capability is opt-in: the library compiles only the options you enable. It follows your app&apos;s <code>minSdkVersion</code> (Expo&apos;s floor is 24); the <code>llm</code> and <code>speech</code> options raise it to 26.</p>
+    <p>Follow <Link href="/get-started">Get Started</Link> to install and build. All features are off by default: the library compiles only the options you turn on. It follows your app&apos;s <code>minSdkVersion</code> (Expo&apos;s floor is 24); the <code>llm</code> and <code>speech</code> options raise it to 26.</p>
     <h2 id="configuration">Build options</h2>
     <p>Enable only what your app uses. For example, to add image operations and face checks:</p>
     <CodeBlock language="json" filename="app.json">{`{

@@ -17,7 +17,7 @@ const DEFAULT_MIC_PERMISSION =
 /**
  * expo-ai-kit config plugin.
  *
- * Every capability is opt-in at build time: an app compiles and ships only the
+ * Every option is off by default: an app compiles and ships only the
  * native code for the options it enables, and the matching JS APIs throw a
  * typed *_NOT_ENABLED error otherwise. Each option writes one gradle property
  * (android/gradle.properties) and, for iOS, one Podfile.properties.json key

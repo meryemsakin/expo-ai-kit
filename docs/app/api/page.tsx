@@ -781,9 +781,9 @@ const { text } = await generateText({
       {/* ------------------------------------------------------------------ */}
       <h2 id="config-plugin">Config Plugin</h2>
       <p>
-        Every capability is opt-in at build time. An app compiles and ships only
-        the native code, models, and permissions for the options it enables, so
-        apps that don&apos;t use a capability pay nothing for it. Without an
+        All options are off by default. An app compiles and ships only the
+        native code, models, and permissions for the options it turns on, so
+        apps that don&apos;t use a feature pay nothing for it. Without an
         option the matching APIs throw a typed <code>*_NOT_ENABLED</code> error
         (and <code>isAvailable()</code> returns <code>false</code> for the LLM).
         Changing an option requires a new native build (dev client / EAS, not

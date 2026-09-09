@@ -29,8 +29,8 @@ export default function GetStartedPage() {
       <h2 id="installation">1. Install</h2>
       <CodeBlock language="bash">{`npx expo install expo-ai-kit`}</CodeBlock>
       <p>
-        Enable the capabilities you use. Each option compiles that capability into the app and nothing
-        else; this example needs <code>llm</code>:
+        <strong>All features are off by default.</strong> Nothing native is compiled into your app until you
+        turn a feature on here. Each option adds one feature and nothing else; this example needs <code>llm</code>:
       </p>
       <CodeBlock language="json" filename="app.json">{`{
   "expo": {
