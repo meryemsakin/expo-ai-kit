@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import ExpoAiKitModule, { type NativeGenerationConfig } from './ExpoAiKitModule';
 import { isValidEmbeddingTask, EMBEDDING_TASKS, normalizeLanguageTag } from './embedding';
 import { parseNativeErrorMessage } from './errors';
-import { classifyFaces, resolveCheckFaceOptions, validateFaceImage } from './face';
+import { normalizeFaceDetection, validateFaceImageUri } from './face';
 import {
   ANDROID_EMBEDDING_MODEL,
   composeAndroidEmbeddingRevision,
@@ -34,7 +34,7 @@ import {
   buildToolArgsRepair,
   formatToolResult,
 } from './tools';
-import type { CheckFaceOptions, FaceCheckResult } from './types';
+import type { DetectFacesOptions, FaceDetectionResult } from './types';
 import {
   LLMMessage,
   LLMSendOptions,
@@ -1710,22 +1710,26 @@ export function streamTranscription(
 const VISION_MODEL_IDS = new Set(['apple-vision', 'mlkit-vision']);
 
 /**
- * Check a local photo for one dominant face, using the expo-face-check API.
- * Enable `vision` on Android and rebuild; no model download or permissions required.
- * Bounds use upright image pixels. LOW_QUALITY checks image resolution only.
- * Independent of generation and speech; multiple photos may be checked concurrently.
+ * Find every face in a local image. Runs at full resolution on the upright
+ * image (EXIF orientation applied) and returns each face box normalized (0–1)
+ * and in pixels, largest first, plus the image size. Decision rules such as
+ * "exactly one face" or "big enough" belong to the caller.
+ *
+ * Needs no preparation or model download: iOS uses Apple Vision on a physical
+ * device (the Simulator cannot run it); Android bundles ML Kit Face Detection
+ * behind the config plugin's `vision` option. Independent of the generation
+ * and speech guards; calls may run concurrently.
+ *
+ * @throws {ModelError} VISION_NOT_ENABLED (Android built without `vision`),
+ *   IMAGE_DECODE_FAILED, VISION_FAILED, or DEVICE_NOT_SUPPORTED.
  */
-export async function checkFace(
-  imageUri: string,
-  options?: CheckFaceOptions
-): Promise<FaceCheckResult> {
+export async function detectFaces(options: DetectFacesOptions): Promise<FaceDetectionResult> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-    throw visionUnsupportedPlatformError('checkFace');
+    throw visionUnsupportedPlatformError('detectFaces');
   }
-  const uri = validateFaceImage(imageUri, Platform.OS);
-  const resolved = resolveCheckFaceOptions(options);
-  const detected = await wrapNative(() => ExpoAiKitModule.detectFaces(uri, resolved.minPixelSize));
-  return classifyFaces(detected, resolved);
+  const uri = validateFaceImageUri(options?.uri, Platform.OS);
+  const raw = await wrapNative(() => ExpoAiKitModule.detectFaces(uri));
+  return normalizeFaceDetection(raw);
 }
 
 function visionUnsupportedPlatformError(fn: string): ModelError {

@@ -657,32 +657,32 @@ export type VisionFeature =
   | 'background-removal'
   | 'image-labeling'
   | 'text-recognition'
-  | 'face-check';
+  | 'face-detection';
 
-export type FaceCheckStatus = 'READY' | 'NO_FACE' | 'MULTIPLE_FACES' | 'LOW_QUALITY';
+/** One face found by {@link detectFaces}. */
+export type DetectedFace = {
+  /** Face box normalized to the upright image (origin top-left, 0–1), clamped to the image. */
+  bounds: NormalizedRect;
+  /** The same box in upright image pixels. */
+  pixelBounds: PixelRect;
+  /** Detector confidence, 0–1. Reported by Apple Vision; absent on Android (ML Kit has none). */
+  confidence?: number;
+};
 
-/** Upright image pixels, origin top-left. Matches expo-face-check (not normalized). */
-export interface FaceBounds {
-  x: number;
-  y: number;
+/** Result of {@link detectFaces}: upright image size and every face, largest first. */
+export type FaceDetectionResult = {
+  /** Upright image width in pixels (EXIF orientation applied). */
   width: number;
+  /** Upright image height in pixels. */
   height: number;
-}
+  /** Faces sorted by box area, largest first; empty when none. */
+  faces: DetectedFace[];
+};
 
-export interface FaceCheckResult {
-  status: FaceCheckStatus;
-  /** Number of dominant faces, excluding smaller background faces. */
-  faceCount: number;
-  /** Present only for READY. Coordinates are in upright image pixels. */
-  dominantFaceBounds?: FaceBounds;
-}
-
-export interface CheckFaceOptions {
-  /** Minimum image width × height. Default: 500_000. This does not measure blur. */
-  minPixelSize?: number;
-  /** Count faces whose area / largest area is strictly greater than this value (0–1). Default: 0.2. */
-  areaThreshold?: number;
-}
+export type DetectFacesOptions = {
+  /** Local image: `file://` URI or absolute path; Android also accepts `content://`. */
+  uri: string;
+};
 
 /** Why a vision feature is unavailable on this device. */
 export type VisionUnavailableReason =
@@ -692,7 +692,7 @@ export type VisionUnavailableReason =
   | 'os-version'
   /**
    * OS is new enough but this device cannot run the feature: the iOS Simulator
-   * (background removal, image labeling, and face checks, Vision's neural requests need a
+   * (background removal, image labeling, and face detection, Vision's neural requests need a
    * physical device; text recognition works there), or Android without Google
    * Play services (background removal and text recognition).
    */
@@ -715,7 +715,7 @@ export type VisionAvailability = {
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
-  faceCheck: VisionFeatureAvailability;
+  faceDetection: VisionFeatureAvailability;
 };
 
 export type PrepareVisionOptions = {

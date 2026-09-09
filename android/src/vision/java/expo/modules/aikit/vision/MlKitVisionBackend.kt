@@ -70,8 +70,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class MlKitVisionBackend(private val context: Context) : VisionBackend {
 
-  override suspend fun detectFaces(uri: String, minPixelSize: Double): Map<String, Any?> =
-    FaceCheckClient(context).detectFaces(uri, minPixelSize)
+  override suspend fun detectFaces(uri: String): Map<String, Any?> =
+    FaceDetectionClient(context).detectFaces(uri)
 
   companion object {
     const val MODEL_ID = "mlkit-vision"
@@ -332,7 +332,7 @@ class MlKitVisionBackend(private val context: Context) : VisionBackend {
         "backgroundRemoval" to unavailable,
         "imageLabeling" to labeling,
         "textRecognition" to unavailable,
-        "faceCheck" to labeling
+        "faceDetection" to labeling
       )
     }
     val segmentation = try {
@@ -349,7 +349,7 @@ class MlKitVisionBackend(private val context: Context) : VisionBackend {
       "backgroundRemoval" to mapOf("status" to segmentation),
       "imageLabeling" to labeling,
       "textRecognition" to mapOf("status" to text),
-      "faceCheck" to labeling
+      "faceDetection" to labeling
     )
   }
 

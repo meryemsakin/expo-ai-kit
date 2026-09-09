@@ -24,7 +24,7 @@ const headings = [
   { id: "removebackground", text: "removeBackground()", level: 3 },
   { id: "labelimage", text: "labelImage()", level: 3 },
   { id: "recognizetext", text: "recognizeText()", level: 3 },
-  { id: "checkface", text: "checkFace()", level: 3 },
+  { id: "detectfaces", text: "detectFaces()", level: 3 },
   { id: "vision-lifecycle", text: "Vision lifecycle", level: 3 },
   { id: "embeddings", text: "Embeddings", level: 2 },
   { id: "embed", text: "embed()", level: 3 },
@@ -419,22 +419,21 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
 }>`}
       </CodeBlock>
 
-      <h3 id="checkface">checkFace()</h3>
-      <p>Check a local image for one dominant face. No preparation or download needed. Enable vision on Android and rebuild. See <a href="/guides/face-check">the face-check guide</a>.</p>
-      <CodeBlock language="typescript">{`function checkFace(imageUri: string, options?: CheckFaceOptions): Promise<FaceCheckResult>
+      <h3 id="detectfaces">detectFaces()</h3>
+      <p>Find every face in a local image. No preparation or download needed. Enable vision on Android and rebuild. See <a href="/guides/face-detection">the face detection guide</a> for profile-photo and crop recipes.</p>
+      <CodeBlock language="typescript">{`function detectFaces(options: { uri: string }): Promise<FaceDetectionResult>
 
-type FaceCheckStatus = 'READY' | 'NO_FACE' | 'MULTIPLE_FACES' | 'LOW_QUALITY';
-interface CheckFaceOptions {
-  minPixelSize?: number;   // Minimum image width × height; default 500_000
-  areaThreshold?: number; // Strict area/largestArea threshold, 0–1; default 0.2
-}
-interface FaceBounds { x: number; y: number; width: number; height: number }
-interface FaceCheckResult {
-  status: FaceCheckStatus;
-  faceCount: number;               // Dominant faces only
-  dominantFaceBounds?: FaceBounds; // READY only; upright image pixels, top-left origin
-}`}</CodeBlock>
-      <p>The URI string and pixel bounds preserve expo-face-check compatibility. LOW_QUALITY checks image resolution only. Runtime failures use IMAGE_DECODE_FAILED, VISION_FAILED, VISION_NOT_ENABLED, or DEVICE_NOT_SUPPORTED.</p>
+type FaceDetectionResult = {
+  width: number;          // upright image size in pixels (EXIF applied)
+  height: number;
+  faces: DetectedFace[];  // largest first; [] when none
+};
+type DetectedFace = {
+  bounds: NormalizedRect;   // 0–1, origin top-left, clamped to the image
+  pixelBounds: PixelRect;   // the same box in upright image pixels
+  confidence?: number;      // 0–1, Apple Vision only
+};`}</CodeBlock>
+      <p>Runs at full resolution; calls may run concurrently. Failures use IMAGE_DECODE_FAILED, VISION_FAILED, VISION_NOT_ENABLED, or DEVICE_NOT_SUPPORTED (iOS Simulator).</p>
 
       <h3 id="vision-lifecycle">Vision lifecycle</h3>
       <p>
@@ -448,7 +447,7 @@ interface FaceCheckResult {
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
-  faceCheck: VisionFeatureAvailability;
+  faceDetection: VisionFeatureAvailability;
 }>
 // VisionFeatureAvailability =
 //   | { status: 'available' }
@@ -456,7 +455,7 @@ interface FaceCheckResult {
 //   | { status: 'unavailable'; reason: 'platform' | 'os-version' | 'device' | 'not-enabled' }
 
 function prepareVision(options?: {
-  features?: ('background-removal' | 'image-labeling' | 'text-recognition' | 'face-check')[]; // default: all
+  features?: ('background-removal' | 'image-labeling' | 'text-recognition' | 'face-detection')[]; // default: all
   languages?: string[];                      // OCR script models to fetch (Android)
   onProgress?: (progress: number) => void;   // 0–1
 }): Promise<void>
@@ -824,7 +823,7 @@ const { text } = await generateText({
           </tr>
           <tr>
             <td><code>vision</code></td>
-            <td>Android <code>removeBackground</code>, <code>labelImage</code>, <code>recognizeText</code>, <code>checkFace</code></td>
+            <td>Android <code>removeBackground</code>, <code>labelImage</code>, <code>recognizeText</code>, <code>detectFaces</code></td>
             <td>ML Kit vision clients + bundled face and label models (no permissions). iOS needs no option.</td>
           </tr>
           <tr>
@@ -940,7 +939,7 @@ type VisionAvailability = {
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
-  faceCheck: VisionFeatureAvailability;
+  faceDetection: VisionFeatureAvailability;
 };
 type PrepareVisionOptions = {
   features?: VisionFeature[]; languages?: string[]; onProgress?: (progress: number) => void;

@@ -1,7 +1,7 @@
 import { requireNativeModule } from 'expo-modules-core';
 import type { EventSubscription } from 'expo-modules-core';
 
-import type { FaceDetectionResult } from './face';
+import type { NativeFaceDetection } from './face';
 import {
   BuiltInModel,
   DownloadableModelStatus,
@@ -155,7 +155,8 @@ export interface ExpoAiKitNativeModule {
   // when built without the flag, and `downloadable` for features whose Google
   // Play services model is not installed yet.
   getVisionAvailability(): Promise<Record<string, { status: string; reason?: string } | undefined>>;
-  detectFaces(uri: string, minPixelSize: number): Promise<FaceDetectionResult>;
+  // Upright image size plus raw face boxes in upright pixels; JS normalizes.
+  detectFaces(uri: string): Promise<NativeFaceDetection>;
   // Downloads the Play services models for `features` (Android); `languages`
   // picks the text-recognition script models. iOS validates and resolves.
   // Progress arrives on onDownloadProgress with modelId 'mlkit-vision'.

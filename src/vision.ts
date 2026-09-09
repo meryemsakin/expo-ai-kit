@@ -26,7 +26,7 @@ export const VISION_FEATURES: readonly VisionFeature[] = [
   'background-removal',
   'image-labeling',
   'text-recognition',
-  'face-check',
+  'face-detection',
 ];
 
 /**
@@ -301,7 +301,7 @@ export function normalizeVisionAvailability(raw: unknown): VisionAvailability {
     backgroundRemoval: normalizeVisionFeatureAvailability(map.backgroundRemoval),
     imageLabeling: normalizeVisionFeatureAvailability(map.imageLabeling),
     textRecognition: normalizeVisionFeatureAvailability(map.textRecognition),
-    faceCheck: normalizeVisionFeatureAvailability(map.faceCheck),
+    faceDetection: normalizeVisionFeatureAvailability(map.faceDetection),
   };
 }
 
@@ -312,6 +312,6 @@ export function unavailableVisionAvailability(reason: VisionUnavailableReason): 
     backgroundRemoval: entry,
     imageLabeling: entry,
     textRecognition: entry,
-    faceCheck: entry,
+    faceDetection: entry,
   };
 }

@@ -22,7 +22,7 @@ export default function GetStartedPage() {
       </p>
       <p>
         Here for <Link href="/guides/speech">speech</Link>, <Link href="/guides/vision">images</Link>,{" "}
-        <Link href="/guides/face-check">face checks</Link>, or <Link href="/guides/embeddings">embeddings</Link>?
+        <Link href="/guides/face-detection">face detection</Link>, or <Link href="/guides/embeddings">embeddings</Link>?
         Install below, then follow that guide for its configuration and example.
       </p>
 

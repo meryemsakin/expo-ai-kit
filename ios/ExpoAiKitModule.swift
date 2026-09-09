@@ -1032,9 +1032,9 @@ public class ExpoAiKitModule: Module {
       return self.visionClient.availability()
     }
 
-    AsyncFunction("detectFaces") { (uri: String, minPixelSize: Double) async throws -> [String: Any] in
+    AsyncFunction("detectFaces") { (uri: String) async throws -> [String: Any] in
       return try await Task.detached(priority: .userInitiated) {
-        try FaceCheckClient.detectFaces(uri: uri, minPixelSize: minPixelSize)
+        try FaceDetectionClient.detectFaces(uri: uri)
       }.value
     }
 

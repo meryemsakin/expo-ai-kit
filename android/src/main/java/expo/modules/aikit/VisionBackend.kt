@@ -22,8 +22,8 @@ interface VisionBackend {
    */
   suspend fun availability(): Map<String, Any?>
 
-  /** Upright pixel dimensions and face rectangles; bundled detector, no download. */
-  suspend fun detectFaces(uri: String, minPixelSize: Double): Map<String, Any?>
+  /** Upright pixel dimensions and raw face boxes in upright pixels; bundled detector, no download. */
+  suspend fun detectFaces(uri: String): Map<String, Any?>
 
   /**
    * Install the Play services modules for [features] ('background-removal',

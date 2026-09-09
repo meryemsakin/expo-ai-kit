@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     return [
       // The LLM guide was briefly published as /guides/text-generation.
       { source: "/guides/text-generation", destination: "/guides/llm", permanent: true },
+      { source: "/guides/face-check", destination: "/guides/face-detection", permanent: true },
     ];
   },
   images: {

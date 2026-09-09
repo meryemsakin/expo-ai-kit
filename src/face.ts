@@ -1,62 +1,72 @@
-import type { CheckFaceOptions, FaceBounds, FaceCheckResult } from './types';
+import type { DetectedFace, FaceDetectionResult } from './types';
 
-/** Internal native payload. Detection stays native; both platforms share the decision rules. */
-export interface FaceDetectionResult {
+/** Native payload: upright pixel dimensions and raw face boxes in upright pixels. */
+export interface NativeFaceDetection {
   width: number;
   height: number;
-  faces: FaceBounds[];
+  faces: { x: number; y: number; width: number; height: number; confidence?: number }[];
 }
 
-export function resolveCheckFaceOptions(options?: CheckFaceOptions): Required<CheckFaceOptions> {
-  const minPixelSize = options?.minPixelSize ?? 500_000;
-  const areaThreshold = options?.areaThreshold ?? 0.2;
-  if (typeof minPixelSize !== 'number' || !Number.isFinite(minPixelSize) || minPixelSize < 0) {
-    throw new Error('checkFace(): minPixelSize must be a non-negative finite number');
-  }
+/** Local images only: detection never fetches, so remote URLs are rejected before native. */
+export function validateFaceImageUri(uri: unknown, platform: string): string {
+  const trimmed = typeof uri === 'string' ? uri.trim() : '';
   if (
-    typeof areaThreshold !== 'number' ||
-    !Number.isFinite(areaThreshold) ||
-    areaThreshold < 0 ||
-    areaThreshold > 1
-  ) {
-    throw new Error('checkFace(): areaThreshold must be within [0, 1]');
-  }
-  return { minPixelSize, areaThreshold };
-}
-
-export function validateFaceImage(imageUri: string, platform: string): string {
-  const uri = typeof imageUri === 'string' ? imageUri.trim() : '';
-  if (
-    !uri ||
+    !trimmed ||
     !(
-      uri.startsWith('/') ||
-      uri.startsWith('file://') ||
-      (platform === 'android' && uri.startsWith('content://'))
+      trimmed.startsWith('/') ||
+      trimmed.startsWith('file://') ||
+      (platform === 'android' && trimmed.startsWith('content://'))
     )
   ) {
     throw new Error(
-      'checkFace(): imageUri must be a local file URI or absolute path (content:// is also supported on Android)'
+      'detectFaces(): uri must be a local file URI or absolute path (content:// is also supported on Android)'
     );
   }
-  return uri;
+  return trimmed;
 }
 
-/** Preserve expo-face-check's strict dominance threshold, including NO_FACE at threshold 1. */
-export function classifyFaces(
-  result: FaceDetectionResult,
-  options: Required<CheckFaceOptions>
-): FaceCheckResult {
-  if (result.width * result.height < options.minPixelSize) {
-    return { status: 'LOW_QUALITY', faceCount: 0 };
+const isFinitePositive = (n: unknown): n is number =>
+  typeof n === 'number' && Number.isFinite(n) && n > 0;
+const isFiniteNumber = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
+
+/**
+ * Shape the native payload into the public result: every box is intersected
+ * with the image (detectors can report boxes past the edges), expressed in
+ * both normalized and pixel coordinates, and sorted largest first. Boxes that
+ * are empty after clamping are dropped. Throws on a malformed payload.
+ */
+export function normalizeFaceDetection(raw: unknown): FaceDetectionResult {
+  const r = raw as NativeFaceDetection | null;
+  if (!r || !isFinitePositive(r.width) || !isFinitePositive(r.height) || !Array.isArray(r.faces)) {
+    throw new Error('detectFaces(): malformed native result');
   }
-  const sorted = result.faces
-    .map((bounds) => ({ bounds, area: Math.abs(bounds.width * bounds.height) }))
-    .sort((a, b) => b.area - a.area);
-  const largest = sorted[0];
-  const faceCount = largest
-    ? sorted.filter((face) => face.area / largest.area > options.areaThreshold).length
-    : 0;
-  if (faceCount === 0) return { status: 'NO_FACE', faceCount: 0 };
-  if (faceCount > 1) return { status: 'MULTIPLE_FACES', faceCount };
-  return { status: 'READY', faceCount: 1, dominantFaceBounds: largest.bounds };
+  const { width, height } = r;
+  const faces: DetectedFace[] = [];
+  for (const f of r.faces) {
+    if (!f || ![f.x, f.y, f.width, f.height].every(isFiniteNumber)) {
+      throw new Error('detectFaces(): malformed native face');
+    }
+    const left = Math.max(0, Math.min(f.x, f.x + f.width));
+    const top = Math.max(0, Math.min(f.y, f.y + f.height));
+    const right = Math.min(width, Math.max(f.x, f.x + f.width));
+    const bottom = Math.min(height, Math.max(f.y, f.y + f.height));
+    if (right <= left || bottom <= top) continue;
+    const pixelBounds = { x: left, y: top, width: right - left, height: bottom - top };
+    const face: DetectedFace = {
+      bounds: {
+        x: left / width,
+        y: top / height,
+        width: pixelBounds.width / width,
+        height: pixelBounds.height / height,
+      },
+      pixelBounds,
+    };
+    if (isFiniteNumber(f.confidence)) face.confidence = Math.min(1, Math.max(0, f.confidence));
+    faces.push(face);
+  }
+  faces.sort(
+    (a, b) =>
+      b.pixelBounds.width * b.pixelBounds.height - a.pixelBounds.width * a.pixelBounds.height
+  );
+  return { width, height, faces };
 }

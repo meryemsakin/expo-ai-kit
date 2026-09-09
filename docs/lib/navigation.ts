@@ -29,7 +29,7 @@ export const navigation: NavSection[] = [
   ] },
   { title: "Vision", items: [
     { title: "Work with images", href: "/guides/vision", description: "removeBackground, labelImage, recognizeText, cutouts and OCR" },
-    { title: "Check faces", href: "/guides/face-check", description: "checkFace: one dominant face, photo resolution, expo-face-check migration" },
+    { title: "Detect faces", href: "/guides/face-detection", description: "detectFaces: face boxes in normalized and pixel coordinates, profile-photo and crop recipes" },
   ] },
   { title: "Embeddings", items: [
     { title: "Search by meaning", href: "/guides/embeddings", description: "embed, chunkText, createVectorStore, semantic search and retrieval" },
@@ -50,7 +50,7 @@ export const navigation: NavSection[] = [
 const referenceItems: NavItem[] = [
   { title: "LLM reference", href: "/api#llm", description: "isAvailable, prepareBuiltInModel, sendMessage, streamMessage, generateObject, generateText" },
   { title: "Speech reference", href: "/api#speech-to-text", description: "Speech permissions, preparation, transcription" },
-  { title: "Vision reference", href: "/api#vision", description: "Image functions, face checks, availability and preparation" },
+  { title: "Vision reference", href: "/api#vision", description: "Image functions, face detection, availability and preparation" },
   { title: "Embeddings reference", href: "/api#embeddings", description: "Embedding lifecycle and vector search" },
   { title: "Models reference", href: "/api#model-management", description: "setModel, downloadModel, registerModel, unloadModel" },
   { title: "Config plugin", href: "/api#config-plugin", description: "speech, vision, androidEmbeddings" },

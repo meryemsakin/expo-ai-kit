@@ -1,67 +1,86 @@
-import { classifyFaces, resolveCheckFaceOptions, validateFaceImage } from '../face';
+import { normalizeFaceDetection, validateFaceImageUri } from '../face';
 
-const largest = { x: 40, y: 80, width: 100, height: 100 };
-const options = resolveCheckFaceOptions();
-const classify = (faces: (typeof largest)[], areaThreshold = 0.2) =>
-  classifyFaces({ width: 1000, height: 800, faces }, { ...options, areaThreshold });
+const image = { width: 1000, height: 800 };
 
-it('preserves the original defaults and validates thresholds', () => {
-  expect(options).toEqual({ minPixelSize: 500_000, areaThreshold: 0.2 });
-  for (const minPixelSize of [-1, NaN, Infinity, '500000']) {
-    expect(() => resolveCheckFaceOptions({ minPixelSize: minPixelSize as number })).toThrow();
+it('normalizes boxes to both coordinate spaces and sorts largest first', () => {
+  const result = normalizeFaceDetection({
+    ...image,
+    faces: [
+      { x: 0, y: 0, width: 10, height: 10 },
+      { x: 100, y: 200, width: 400, height: 400 },
+    ],
+  });
+  expect(result).toEqual({
+    width: 1000,
+    height: 800,
+    faces: [
+      {
+        bounds: { x: 0.1, y: 0.25, width: 0.4, height: 0.5 },
+        pixelBounds: { x: 100, y: 200, width: 400, height: 400 },
+      },
+      {
+        bounds: { x: 0, y: 0, width: 0.01, height: 0.0125 },
+        pixelBounds: { x: 0, y: 0, width: 10, height: 10 },
+      },
+    ],
+  });
+});
+
+it('clamps boxes that run past the image and drops empty ones', () => {
+  const result = normalizeFaceDetection({
+    ...image,
+    faces: [
+      { x: 900, y: -50, width: 300, height: 200 },
+      { x: 500, y: 400, width: 0, height: 40 },
+      { x: 1200, y: 100, width: 50, height: 50 },
+    ],
+  });
+  expect(result.faces).toEqual([
+    {
+      bounds: { x: 0.9, y: 0, width: 0.1, height: 150 / 800 },
+      pixelBounds: { x: 900, y: 0, width: 100, height: 150 },
+    },
+  ]);
+});
+
+it('passes a finite confidence through, clamped to 0–1, and omits it otherwise', () => {
+  const faces = normalizeFaceDetection({
+    ...image,
+    faces: [
+      { x: 0, y: 0, width: 10, height: 10, confidence: 0.87 },
+      { x: 0, y: 0, width: 10, height: 10, confidence: 1.2 },
+      { x: 0, y: 0, width: 10, height: 10 },
+    ],
+  }).faces;
+  expect(faces.map((f) => f.confidence)).toEqual([0.87, 1, undefined]);
+  expect('confidence' in faces[2]).toBe(false);
+});
+
+it('returns an empty list when nothing is found and rejects malformed payloads', () => {
+  expect(normalizeFaceDetection({ ...image, faces: [] })).toEqual({ ...image, faces: [] });
+  for (const raw of [
+    null,
+    {},
+    { width: 0, height: 800, faces: [] },
+    { width: 1000, height: NaN, faces: [] },
+    { ...image, faces: [{ x: 1 }] },
+    { ...image, faces: [{ x: 1, y: 2, width: 'w', height: 4 }] },
+  ]) {
+    expect(() => normalizeFaceDetection(raw)).toThrow();
   }
-  for (const areaThreshold of [-0.1, 1.1, NaN, Infinity, '0.2']) {
-    expect(() => resolveCheckFaceOptions({ areaThreshold: areaThreshold as number })).toThrow();
-  }
-  expect(resolveCheckFaceOptions({ minPixelSize: 0, areaThreshold: 0 })).toEqual({
-    minPixelSize: 0,
-    areaThreshold: 0,
-  });
-});
-
-it('checks total image resolution before faces, with an inclusive pixel floor', () => {
-  expect(classifyFaces({ width: 500, height: 999, faces: [largest] }, options)).toEqual({
-    status: 'LOW_QUALITY',
-    faceCount: 0,
-  });
-  expect(classifyFaces({ width: 500, height: 1000, faces: [largest] }, options).status).toBe(
-    'READY'
-  );
-});
-
-it('ignores small background faces and returns unmodified upright pixel bounds', () => {
-  expect(classify([{ x: 0, y: 0, width: 10, height: 10 }, largest])).toEqual({
-    status: 'READY',
-    faceCount: 1,
-    dominantFaceBounds: largest,
-  });
-});
-
-it('counts only faces strictly above the area threshold', () => {
-  expect(classify([largest, { ...largest, width: 20 }]).status).toBe('READY');
-  expect(classify([largest, { ...largest, width: 21 }, { ...largest, width: 1 }])).toEqual({
-    status: 'MULTIPLE_FACES',
-    faceCount: 2,
-  });
-  expect(classify([largest], 1)).toEqual({ status: 'NO_FACE', faceCount: 0 });
-  expect(classify([largest, { ...largest, width: 1 }], 0).faceCount).toBe(2);
-});
-
-it('handles no faces and zero-area boxes without inventing a dominant face', () => {
-  expect(classify([])).toEqual({ status: 'NO_FACE', faceCount: 0 });
-  expect(classify([{ ...largest, width: 0 }])).toEqual({ status: 'NO_FACE', faceCount: 0 });
 });
 
 it('accepts local image sources and never fetches remote images', () => {
-  expect(validateFaceImage(' /tmp/a.jpg ', 'ios')).toBe('/tmp/a.jpg');
-  expect(validateFaceImage('file:///tmp/a.jpg', 'ios')).toBe('file:///tmp/a.jpg');
-  expect(validateFaceImage('content://photos/1', 'android')).toBe('content://photos/1');
+  expect(validateFaceImageUri(' /tmp/a.jpg ', 'ios')).toBe('/tmp/a.jpg');
+  expect(validateFaceImageUri('file:///tmp/a.jpg', 'ios')).toBe('file:///tmp/a.jpg');
+  expect(validateFaceImageUri('content://photos/1', 'android')).toBe('content://photos/1');
   for (const uri of [
     '',
+    undefined,
     'https://example.com/a.jpg',
     'data:image/png;base64,abc',
     'content://photos/1',
   ]) {
-    expect(() => validateFaceImage(uri, 'ios')).toThrow();
+    expect(() => validateFaceImageUri(uri, 'ios')).toThrow();
   }
 });

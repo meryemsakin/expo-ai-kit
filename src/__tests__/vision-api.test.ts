@@ -75,7 +75,7 @@ describe('getVisionAvailability', () => {
       backgroundRemoval: { status: 'unavailable', reason: 'platform' },
       imageLabeling: { status: 'unavailable', reason: 'platform' },
       textRecognition: { status: 'unavailable', reason: 'platform' },
-      faceCheck: { status: 'unavailable', reason: 'platform' },
+      faceDetection: { status: 'unavailable', reason: 'platform' },
     });
     expect(native.getVisionAvailability).not.toHaveBeenCalled();
   });
@@ -96,13 +96,13 @@ describe('getVisionAvailability', () => {
       backgroundRemoval: { status: 'downloadable' },
       imageLabeling: { status: 'available' },
       textRecognition: { status: 'downloading' },
-      faceCheck: { status: 'available' },
+      faceDetection: { status: 'available' },
     });
     await expect(getVisionAvailability()).resolves.toEqual({
       backgroundRemoval: { status: 'downloadable' },
       imageLabeling: { status: 'available' },
       textRecognition: { status: 'downloading' },
-      faceCheck: { status: 'available' },
+      faceDetection: { status: 'available' },
     });
   });
 });
@@ -120,7 +120,7 @@ describe('prepareVision', () => {
     native.prepareVision.mockResolvedValue(undefined);
     await prepareVision({ languages: ['ja_jp', 'EN'] });
     expect(native.prepareVision).toHaveBeenCalledWith(
-      ['background-removal', 'image-labeling', 'text-recognition', 'face-check'],
+      ['background-removal', 'image-labeling', 'text-recognition', 'face-detection'],
       ['ja-JP', 'en']
     );
   });
