@@ -475,7 +475,7 @@ class ExpoAiKitModule : Module() {
           "backgroundRemoval" to notEnabled,
           "imageLabeling" to notEnabled,
           "textRecognition" to notEnabled,
-          "faceCheck" to notEnabled
+          "faceDetection" to notEnabled
         )
       }
       backend.availability()
@@ -495,8 +495,8 @@ class ExpoAiKitModule : Module() {
       emptyList<String>()
     }
 
-    AsyncFunction("detectFaces") Coroutine { uri: String, minPixelSize: Double ->
-      requireVisionBackend().detectFaces(uri, minPixelSize)
+    AsyncFunction("detectFaces") Coroutine { uri: String ->
+      requireVisionBackend().detectFaces(uri)
     }
 
     AsyncFunction("removeBackground") Coroutine {

@@ -241,13 +241,13 @@ describe('vision availability normalization', () => {
       backgroundRemoval: { status: 'downloadable' },
       imageLabeling: { status: 'available' },
       textRecognition: { status: 'unavailable', reason: 'device' },
-      faceCheck: { status: 'unavailable', reason: 'device' },
+      faceDetection: { status: 'unavailable', reason: 'device' },
     });
     expect(unavailableVisionAvailability('platform')).toEqual({
       backgroundRemoval: { status: 'unavailable', reason: 'platform' },
       imageLabeling: { status: 'unavailable', reason: 'platform' },
       textRecognition: { status: 'unavailable', reason: 'platform' },
-      faceCheck: { status: 'unavailable', reason: 'platform' },
+      faceDetection: { status: 'unavailable', reason: 'platform' },
     });
   });
 });

@@ -1,3 +1,31 @@
+import {
+  cosineSimilarity,
+  deleteModel,
+  downloadModel,
+  embed,
+  generateObject,
+  getEmbeddingModelStatus,
+  prepareEmbeddingModel,
+  getActiveModel,
+  getDownloadableModels,
+  getSpeechRecognitionAvailability,
+  detectFaces,
+  getVisionAvailability,
+  labelImage,
+  prepareSpeechRecognition,
+  prepareVision,
+  recognizeText,
+  removeBackground,
+  requestSpeechPermissionsAsync,
+  sendMessage,
+  setModel,
+  streamMessage,
+  streamTranscription,
+  unloadModel,
+  type DownloadableModel,
+  type TranscriptionHandle,
+  type VisionAvailability,
+} from 'expo-ai-kit';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
 import {
@@ -15,34 +43,6 @@ import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
 } from 'react-native';
-import {
-  cosineSimilarity,
-  deleteModel,
-  downloadModel,
-  embed,
-  generateObject,
-  getEmbeddingModelStatus,
-  prepareEmbeddingModel,
-  getActiveModel,
-  getDownloadableModels,
-  getSpeechRecognitionAvailability,
-  checkFace,
-  getVisionAvailability,
-  labelImage,
-  prepareSpeechRecognition,
-  prepareVision,
-  recognizeText,
-  removeBackground,
-  requestSpeechPermissionsAsync,
-  sendMessage,
-  setModel,
-  streamMessage,
-  streamTranscription,
-  unloadModel,
-  type DownloadableModel,
-  type TranscriptionHandle,
-  type VisionAvailability,
-} from 'expo-ai-kit';
 
 const TARGET_MODEL_ID = 'gemma-e2b';
 
@@ -63,18 +63,16 @@ function ProgressBar({ progress }: { progress: number }) {
 
 function StatusBadge({ label }: { label: string }) {
   const palette: Record<string, { bg: string; fg: string }> = {
-    'ready':         { bg: '#2ea043', fg: 'white' },
-    'loading':       { bg: '#d29922', fg: 'white' },
-    'downloading':   { bg: '#1f6feb', fg: 'white' },
-    'downloaded':    { bg: '#0e7490', fg: 'white' },
-    'asking':        { bg: '#8957e5', fg: 'white' },
-    'streaming':     { bg: '#8957e5', fg: 'white' },
-    'not-downloaded':{ bg: '#30363d', fg: '#c9d1d9' },
+    ready: { bg: '#2ea043', fg: 'white' },
+    loading: { bg: '#d29922', fg: 'white' },
+    downloading: { bg: '#1f6feb', fg: 'white' },
+    downloaded: { bg: '#0e7490', fg: 'white' },
+    asking: { bg: '#8957e5', fg: 'white' },
+    streaming: { bg: '#8957e5', fg: 'white' },
+    'not-downloaded': { bg: '#30363d', fg: '#c9d1d9' },
   };
   const c = palette[label] ?? palette['not-downloaded'];
-  return (
-    <Text style={[styles.badge, { backgroundColor: c.bg, color: c.fg }]}>{label}</Text>
-  );
+  return <Text style={[styles.badge, { backgroundColor: c.bg, color: c.fg }]}>{label}</Text>;
 }
 
 function SpeechSection() {
@@ -178,7 +176,7 @@ function VisionSection() {
       setAvailability(
         `cutout ${describeAvailability(a.backgroundRemoval)} · labels ${describeAvailability(
           a.imageLabeling
-        )} · ocr ${describeAvailability(a.textRecognition)} · faces ${describeAvailability(a.faceCheck)}`
+        )} · ocr ${describeAvailability(a.textRecognition)} · faces ${describeAvailability(a.faceDetection)}`
       );
     } catch (e: any) {
       setAvailability(`error: ${e?.message ?? String(e)}`);
@@ -208,11 +206,16 @@ function VisionSection() {
 
   const doPick = () =>
     run('picking', async () => {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+      });
       if (result.canceled || !result.assets[0]) return;
       const asset = result.assets[0];
       setImageUri(asset.uri);
-      setImageSize(asset.width && asset.height ? { width: asset.width, height: asset.height } : null);
+      setImageSize(
+        asset.width && asset.height ? { width: asset.width, height: asset.height } : null
+      );
       setCutoutUri(null);
       setMaskUri(null);
       setCutoutInfo('');
@@ -240,10 +243,16 @@ function VisionSection() {
   // preview uses resizeMode="contain", so map the touch through the
   // letterboxed image rect into normalized image coordinates.
   const onPreviewLayout = (event: LayoutChangeEvent) =>
-    setPreviewBox({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height });
+    setPreviewBox({
+      width: event.nativeEvent.layout.width,
+      height: event.nativeEvent.layout.height,
+    });
   const onPreviewPress = (event: GestureResponderEvent) => {
     if (!imageSize || !previewBox || busy) return;
-    const scale = Math.min(previewBox.width / imageSize.width, previewBox.height / imageSize.height);
+    const scale = Math.min(
+      previewBox.width / imageSize.width,
+      previewBox.height / imageSize.height
+    );
     const shownWidth = imageSize.width * scale;
     const shownHeight = imageSize.height * scale;
     const offsetX = (previewBox.width - shownWidth) / 2;
@@ -259,14 +268,23 @@ function VisionSection() {
       if (!imageUri) return;
       const result = await labelImage({ uri: imageUri }, { maxResults: 5 });
       console.log('[demo] labelImage', JSON.stringify(result));
-      setLabels(result.map((l) => `${l.label} ${(l.confidence * 100).toFixed(0)}%`).join('\n') || '(none)');
+      setLabels(
+        result.map((l) => `${l.label} ${(l.confidence * 100).toFixed(0)}%`).join('\n') || '(none)'
+      );
     });
 
-  const doFaceCheck = () =>
-    run('checking faces', async () => {
+  const doFaces = () =>
+    run('detecting faces', async () => {
       if (!imageUri) return;
-      const result = await checkFace(imageUri);
-      setFaceResult(JSON.stringify(result, null, 2));
+      const result = await detectFaces({ uri: imageUri });
+      const lines = result.faces.map(
+        (f, i) =>
+          `#${i + 1} ${(f.bounds.width * 100).toFixed(0)}% wide at (${f.pixelBounds.x}, ${f.pixelBounds.y}) ` +
+          `${f.pixelBounds.width}×${f.pixelBounds.height}px`
+      );
+      setFaceResult(
+        `${result.faces.length} face(s) in ${result.width}×${result.height}\n${lines.join('\n')}`
+      );
     });
 
   const doOcr = () =>
@@ -282,9 +300,7 @@ function VisionSection() {
   const doShare = () =>
     run('sharing', async () => {
       if (!cutoutUri) return;
-      await Share.share(
-        Platform.OS === 'ios' ? { url: cutoutUri } : { message: cutoutUri }
-      );
+      await Share.share(Platform.OS === 'ios' ? { url: cutoutUri } : { message: cutoutUri });
     });
 
   return (
@@ -297,11 +313,13 @@ function VisionSection() {
         <Button title="Pick photo" onPress={doPick} disabled={!!busy} />
         <Button title="Cutout" onPress={doCutout} disabled={!!busy || !imageUri} />
         <Button title="Labels" onPress={doLabels} disabled={!!busy || !imageUri} />
-        <Button title="Check face" onPress={doFaceCheck} disabled={!!busy || !imageUri} />
+        <Button title="Faces" onPress={doFaces} disabled={!!busy || !imageUri} />
         <Button title="OCR" onPress={doOcr} disabled={!!busy || !imageUri} />
         <Button title="Share cutout" onPress={doShare} disabled={!!busy || !cutoutUri} />
       </View>
-      {imageUri && <Text style={styles.meta}>tap the photo to cut out only the subject under your finger</Text>}
+      {imageUri && (
+        <Text style={styles.meta}>tap the photo to cut out only the subject under your finger</Text>
+      )}
       {(imageUri || cutoutUri) && (
         <View style={styles.imageRow}>
           {imageUri && (
@@ -310,9 +328,15 @@ function VisionSection() {
             </Pressable>
           )}
           {cutoutUri && (
-            <Image source={{ uri: cutoutUri }} style={[styles.preview, styles.cutout]} resizeMode="contain" />
+            <Image
+              source={{ uri: cutoutUri }}
+              style={[styles.preview, styles.cutout]}
+              resizeMode="contain"
+            />
           )}
-          {maskUri && <Image source={{ uri: maskUri }} style={styles.preview} resizeMode="contain" />}
+          {maskUri && (
+            <Image source={{ uri: maskUri }} style={styles.preview} resizeMode="contain" />
+          )}
         </View>
       )}
       {cutoutInfo !== '' && <Text style={styles.meta}>{cutoutInfo}</Text>}
@@ -383,7 +407,9 @@ function EmbeddingsSection() {
 
   const doPrepare = () =>
     run('preparing', async () => {
-      await prepareEmbeddingModel({ onProgress: (p) => setBusy(`downloading ${(p * 100).toFixed(0)}%`) });
+      await prepareEmbeddingModel({
+        onProgress: (p) => setBusy(`downloading ${(p * 100).toFixed(0)}%`),
+      });
       await refreshStatus();
     });
 
@@ -391,7 +417,9 @@ function EmbeddingsSection() {
     run('searching', async () => {
       if (!query.trim()) return;
       const { embeddings: docs } = await embed(SAMPLE_NOTES, { task: 'retrieval-document' });
-      const { embeddings: [q] } = await embed([query], { task: 'retrieval-query' });
+      const {
+        embeddings: [q],
+      } = await embed([query], { task: 'retrieval-query' });
       const ranked = SAMPLE_NOTES.map((note, i) => ({ note, score: cosineSimilarity(q, docs[i]) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 3);
@@ -449,52 +477,58 @@ export default function App() {
     setActiveModelId(getActiveModel());
   };
 
-  useEffect(() => { refresh().catch((e) => setError(String(e))); }, []);
+  useEffect(() => {
+    refresh().catch((e) => setError(String(e)));
+  }, []);
 
   const withBusy = async (label: string, fn: () => Promise<void>) => {
     setBusy(label);
     setError(null);
-    try { await fn(); }
-    catch (e: any) { setError(e?.message ?? String(e)); }
-    // refresh() rejects with LLM_NOT_ENABLED in a build without the llm
-    // option; the mount-time call already shows that, so keep it quiet here.
-    finally { setBusy(null); await refresh().catch(() => {}); }
+    try {
+      await fn();
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      // refresh() rejects with LLM_NOT_ENABLED in a build without the llm
+      // option; the mount-time call already shows that, so keep it quiet here.
+      setBusy(null);
+      await refresh().catch(() => {});
+    }
   };
 
-  const doDownload = () => withBusy('downloading', async () => {
-    setDownloadProgress(0);
-    await downloadModel(TARGET_MODEL_ID, { onProgress: setDownloadProgress });
-    setDownloadProgress(null);
-  });
-  const doActivate = () => withBusy('loading',     () => setModel(TARGET_MODEL_ID));
-  const doUnload   = () => withBusy('unloading',   () => unloadModel());
-  const doDelete   = () => withBusy('deleting',    () => deleteModel(TARGET_MODEL_ID));
+  const doDownload = () =>
+    withBusy('downloading', async () => {
+      setDownloadProgress(0);
+      await downloadModel(TARGET_MODEL_ID, { onProgress: setDownloadProgress });
+      setDownloadProgress(null);
+    });
+  const doActivate = () => withBusy('loading', () => setModel(TARGET_MODEL_ID));
+  const doUnload = () => withBusy('unloading', () => unloadModel());
+  const doDelete = () => withBusy('deleting', () => deleteModel(TARGET_MODEL_ID));
 
-  const doSend = () => withBusy('asking', async () => {
-    if (!prompt.trim()) return;
-    setReply('…');
-    const r = await sendMessage([{ role: 'user', content: prompt }]);
-    setReply(r.text);
-  });
-  const doStream = () => withBusy('streaming', async () => {
-    if (!prompt.trim()) return;
-    setStreamingText('');
-    const startedAt = Date.now();
-    const { promise } = streamMessage(
-      [{ role: 'user', content: prompt }],
-      (e) => {
+  const doSend = () =>
+    withBusy('asking', async () => {
+      if (!prompt.trim()) return;
+      setReply('…');
+      const r = await sendMessage([{ role: 'user', content: prompt }]);
+      setReply(r.text);
+    });
+  const doStream = () =>
+    withBusy('streaming', async () => {
+      if (!prompt.trim()) return;
+      setStreamingText('');
+      const startedAt = Date.now();
+      const { promise } = streamMessage([{ role: 'user', content: prompt }], (e) => {
         console.log('[demo] token', JSON.stringify({ t: Date.now() - startedAt, token: e.token }));
         setStreamingText(e.accumulatedText);
-      }
-    );
-    await promise;
-  });
-  const doObject = () => withBusy('extracting', async () => {
-    if (!prompt.trim()) return;
-    setObjectText('…');
-    const { object } = await generateObject(
-      [{ role: 'user', content: prompt }],
-      {
+      });
+      await promise;
+    });
+  const doObject = () =>
+    withBusy('extracting', async () => {
+      if (!prompt.trim()) return;
+      setObjectText('…');
+      const { object } = await generateObject([{ role: 'user', content: prompt }], {
         type: 'object',
         properties: {
           summary: { type: 'string' },
@@ -502,15 +536,14 @@ export default function App() {
           sentiment: { type: 'string', enum: ['positive', 'neutral', 'negative'] },
         },
         required: ['summary', 'keywords', 'sentiment'],
-      }
-    );
-    setObjectText(JSON.stringify(object, null, 2));
-  });
+      });
+      setObjectText(JSON.stringify(object, null, 2));
+    });
 
   const sizeLabel = model ? formatBytes(model.sizeBytes) : ', ';
   const downloadedLabel =
     downloadProgress != null && model ? formatBytes(downloadProgress * model.sizeBytes) : null;
-  const statusLabel = busy ?? (model?.status ?? 'not-downloaded');
+  const statusLabel = busy ?? model?.status ?? 'not-downloaded';
 
   return (
     <KeyboardAvoidingView
@@ -531,7 +564,8 @@ export default function App() {
             <StatusBadge label={statusLabel} />
           </View>
           <Text style={styles.meta}>
-            {model?.parameterCount ?? ', '} params · {sizeLabel} · ctx {model?.contextWindow ?? ', '}
+            {model?.parameterCount ?? ', '} params · {sizeLabel} · ctx{' '}
+            {model?.contextWindow ?? ', '}
           </Text>
           <Text style={styles.meta}>
             device {model?.meetsRequirements ? '✓ meets' : '✗ does NOT meet'} RAM requirement
@@ -542,7 +576,7 @@ export default function App() {
             <View style={styles.progressBlock}>
               <ProgressBar progress={downloadProgress} />
               <Text style={styles.progressText}>
-                {(downloadProgress * 100).toFixed(1)}%  ·  {downloadedLabel} / {sizeLabel}
+                {(downloadProgress * 100).toFixed(1)}% · {downloadedLabel} / {sizeLabel}
               </Text>
             </View>
           )}
@@ -552,7 +586,7 @@ export default function App() {
         <View style={styles.buttons}>
           <Button title="Download" onPress={doDownload} disabled={!!busy} />
           <Button title="Activate" onPress={doActivate} disabled={!!busy} />
-          <Button title="Unload"   onPress={doUnload}   disabled={!!busy} />
+          <Button title="Unload" onPress={doUnload} disabled={!!busy} />
           <Button title="Delete file" onPress={doDelete} disabled={!!busy} />
         </View>
 
@@ -668,7 +702,13 @@ const styles = StyleSheet.create({
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
 
   imageRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  preview: { flex: 1, height: 160, borderRadius: 6, backgroundColor: '#0d1117', overflow: 'hidden' },
+  preview: {
+    flex: 1,
+    height: 160,
+    borderRadius: 6,
+    backgroundColor: '#0d1117',
+    overflow: 'hidden',
+  },
   previewImage: { width: '100%', height: '100%' },
   cutout: { backgroundColor: '#8b949e' },
 

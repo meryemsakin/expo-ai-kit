@@ -70,17 +70,17 @@ iOS requires 26+; Android requires 12+ and processes file audio at real-time rat
 
 [Remove backgrounds, label images, and read text](https://expo-ai-kit.dev/guides/vision)
 with `removeBackground`, `labelImage`, and `recognizeText`.
-[Check a photo for one dominant face](https://expo-ai-kit.dev/guides/face-check) with `checkFace`:
+[Find faces](https://expo-ai-kit.dev/guides/face-detection) with `detectFaces`:
 
 ```ts
-import { checkFace } from 'expo-ai-kit';
+import { detectFaces } from 'expo-ai-kit';
 
-const result = await checkFace(photo.uri, { minPixelSize: 500_000 });
-// result.status: READY | NO_FACE | MULTIPLE_FACES | LOW_QUALITY
+const { width, height, faces } = await detectFaces({ uri: photo.uri });
+// faces[0].bounds (normalized 0–1) and faces[0].pixelBounds, largest face first
 ```
 
-Enable `vision` on Android and rebuild. Face checks use a bundled detector and need no
-model download. The API keeps `expo-face-check`'s thresholds, statuses, and pixel bounds.
+Enable `vision` on Android and rebuild. Face detection uses a bundled detector and needs no
+model download; rules such as "exactly one face" are a few lines in your app.
 
 ## Embeddings
 
@@ -98,7 +98,7 @@ throw a typed `*_NOT_ENABLED` error. Changing an option requires a new native bu
 | --- | --- | --- |
 | `llm` | Text generation, JSON output, tool calling, model downloads, the AI SDK provider | LiteRT-LM runtime (about 30 MB of iOS arm64 code, 21 MB on Android); Android `minSdkVersion` 26 |
 | `speech` | `transcribe`, `streamTranscription` | Android ML Kit speech and microphone permission; iOS microphone usage string |
-| `vision` | Android `removeBackground`, `labelImage`, `recognizeText`, `checkFace` | ML Kit vision clients with bundled face and label models; iOS needs no option |
+| `vision` | Android `removeBackground`, `labelImage`, `recognizeText`, `detectFaces` | ML Kit vision clients with bundled face and label models; iOS needs no option |
 | `androidEmbeddings` | Android `embed` | MediaPipe TextEmbedder (about 25 MB); the model downloads at runtime |
 
 The [config reference](https://expo-ai-kit.dev/api#config-plugin) covers bare React Native

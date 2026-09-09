@@ -40,19 +40,19 @@ Speech has its own single-flight guard (SPEECH_BUSY).
 ## Vision
 
 - [Images](https://expo-ai-kit.dev/guides/vision): removeBackground, labelImage, recognizeText.
-- [Face checks](https://expo-ai-kit.dev/guides/face-check): checkFace(imageUri, { minPixelSize?, areaThreshold? }).
+- [Face detection](https://expo-ai-kit.dev/guides/face-detection): detectFaces({ uri }).
 
 Enable vision on Android and rebuild. No new permissions. iOS needs no plugin option.
-Vision does not need the llm option; a face-check-only app ships no text runtime.
-getVisionAvailability reports backgroundRemoval, imageLabeling, textRecognition, and faceCheck.
+Vision does not need the llm option; a face-detection-only app ships no text runtime.
+getVisionAvailability reports backgroundRemoval, imageLabeling, textRecognition, and faceDetection.
 prepareVision is the only call that downloads: Android segmentation and OCR use Play services
 models. Image labeling and face detection are bundled and work without preparation.
-Other vision calls accept { uri }; checkFace accepts a URI string for expo-face-check compatibility.
-checkFace returns READY, NO_FACE, MULTIPLE_FACES, or LOW_QUALITY; defaults: minPixelSize 500000,
-areaThreshold 0.2. faceCount counts only faces with area/largestArea strictly greater than the
-threshold. Bounds appear only for READY and use upright image pixels, origin top-left.
-Face checks require a physical iOS device. Other vision bounds are normalized 0–1. LOW_QUALITY measures total image pixels, not blur.
-Vision is independent of generation and speech. Face checks may run concurrently.
+Every vision call accepts { uri } (local file:// or path; Android also content://).
+detectFaces returns { width, height, faces }: upright image pixels and faces sorted largest first,
+each with bounds (normalized 0–1, origin top-left, clamped) and pixelBounds (upright pixels), plus
+confidence on iOS. It only detects; "one dominant face" or minimum-size rules belong to the app.
+Face detection requires a physical iOS device. All vision bounds are normalized 0–1.
+Vision is independent of generation and speech. Face detection may run concurrently.
 
 ## Embeddings
 

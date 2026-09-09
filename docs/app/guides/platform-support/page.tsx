@@ -16,7 +16,7 @@ export default function PlatformSupportPage() {
       <tr><td>Vision: background removal</td><td>iOS 17+, physical device</td><td>Enable <code>vision</code>; Google Play services model</td></tr>
       <tr><td>Vision: image labels</td><td>Physical device</td><td>Enable <code>vision</code>; bundled model</td></tr>
       <tr><td>Vision: OCR</td><td>Apple Vision; also works in Simulator</td><td>Enable <code>vision</code>; Google Play services script models</td></tr>
-      <tr><td>Vision: face checks</td><td>Apple Vision on a physical device; no Apple Intelligence requirement</td><td>Enable <code>vision</code>; bundled detector</td></tr>
+      <tr><td>Vision: face detection</td><td>Apple Vision on a physical device; no Apple Intelligence requirement</td><td>Enable <code>vision</code>; bundled detector</td></tr>
       <tr><td>Embeddings</td><td>iOS 17+, NLContextualEmbedding</td><td>Enable <code>androidEmbeddings</code>; prepare EmbeddingGemma</td></tr>
     </tbody></table>
     <p>All LLM functions—text, streaming, structured output, and tool calling—use the selected text model. Vision and speech do not require an available LLM.</p>
@@ -24,7 +24,7 @@ export default function PlatformSupportPage() {
     <p>Use <code>isAvailable()</code> for built-in text, <code>getSpeechRecognitionAvailability()</code> for speech, <code>getVisionAvailability()</code> for images, and <code>getEmbeddingModelStatus()</code> for embeddings. A library-compatible OS alone does not guarantee model availability.</p>
     <p>Android built-in text can be supported before its model is downloaded. Await <code>prepareBuiltInModel()</code> before generation. For other features, follow their preparation steps.</p>
     <h2 id="testing">Testing and fallbacks</h2>
-    <p>Test on physical devices. iOS Simulator cannot run background removal, image labeling, or face checks. Downloadable text models are disabled on Android x86/x86_64 because the LiteRT-LM backend can crash; use arm64.</p>
+    <p>Test on physical devices. iOS Simulator cannot run background removal, image labeling, or face detection. Downloadable text models are disabled on Android x86/x86_64 because the LiteRT-LM backend can crash; use arm64.</p>
     <p>When built-in text is unavailable, offer a <Link href="/guides/models">downloadable model</Link> or a fallback in your UI. Native failures surface as <Link href="/api#errors">typed errors</Link>.</p>
     <p>See <Link href="/guides/android-setup">Android setup</Link> for build configuration and <Link href="/troubleshooting">troubleshooting</Link> for failures.</p>
   </DocsLayout>;

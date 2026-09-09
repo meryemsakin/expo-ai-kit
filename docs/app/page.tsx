@@ -27,7 +27,7 @@ export default function Home() {
         <tbody>
           <tr><td><Link href="/guides/llm">LLM</Link></td><td>Chat, text generation, structured JSON, and tool calling</td></tr>
           <tr><td><Link href="/guides/speech">Speech</Link></td><td>Live dictation and audio transcription</td></tr>
-          <tr><td><Link href="/guides/vision">Vision</Link></td><td>Background removal, image labels, OCR, and <Link href="/guides/face-check">face checks</Link></td></tr>
+          <tr><td><Link href="/guides/vision">Vision</Link></td><td>Background removal, image labels, OCR, and <Link href="/guides/face-detection">face detection</Link></td></tr>
           <tr><td><Link href="/guides/embeddings">Embeddings</Link></td><td>Semantic search over your own data</td></tr>
         </tbody>
       </table>

@@ -65,7 +65,7 @@ const DEFAULT_MIC_PERMISSION =
  *
  * - `vision` (boolean, default `false`): enable on-device vision on Android,
  *   removeBackground() (ML Kit Subject Segmentation), labelImage() (ML Kit
- *   Image Labeling), checkFace() (bundled Face Detection), and recognizeText() (ML Kit Text Recognition v2). Off by
+ *   Image Labeling), detectFaces() (bundled Face Detection), and recognizeText() (ML Kit Text Recognition v2). Off by
  *   default because it adds the ML Kit clients and the bundled label model to
  *   the APK. On, prebuild writes a gradle property that compiles the library's
  *   vision source set and adds the ML Kit dependencies; the segmentation and

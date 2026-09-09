@@ -1,7 +1,7 @@
 {
   "name": "expo-ai-kit",
   "version": "0.16.0",
-  "description": "On-device AI for React Native and Expo: LLMs, speech-to-text, vision and face checks, and embeddings. Each capability is opt-in at build time. No API key. Zero runtime JavaScript dependencies.",
+  "description": "On-device AI for React Native and Expo: LLMs, speech-to-text, vision, and embeddings. Each capability is opt-in at build time. No API key. Zero runtime JavaScript dependencies.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "files": [
@@ -80,8 +80,7 @@
     "vercel-ai-sdk",
     "ai-sdk-provider",
     "expo-ai-kit",
-    "face-detection",
-    "face-check"
+    "face-detection"
   ],
   "repository": "https://github.com/saidkaban/expo-ai-kit",
   "bugs": {

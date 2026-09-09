@@ -32,7 +32,7 @@ export default function VisionPage() {
 
       <BadgeGroup platforms={["ios", "android", "new"]} />
 
-      <p>To check profile photos for one dominant face, see <Link href="/guides/face-check">Face checks</Link>.</p>
+      <p>To find faces and their boxes, see <Link href="/guides/face-detection">Face detection</Link>.</p>
 
       <h2 id="enable">Enable vision (Android)</h2>
       <p>
@@ -67,7 +67,7 @@ export default function VisionPage() {
         {`import { getVisionAvailability, prepareVision } from 'expo-ai-kit';
 
 const availability = await getVisionAvailability();
-// availability.backgroundRemoval / imageLabeling / textRecognition / faceCheck:
+// availability.backgroundRemoval / imageLabeling / textRecognition / faceDetection:
 //   { status: 'available' }
 //   { status: 'downloadable' | 'downloading' }, Android model not installed yet
 //   { status: 'unavailable', reason: 'platform' | 'os-version' | 'device' | 'not-enabled' }

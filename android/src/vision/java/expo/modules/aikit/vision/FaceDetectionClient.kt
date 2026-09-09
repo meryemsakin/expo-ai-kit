@@ -18,21 +18,22 @@ import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Full-resolution detection from expo-face-check 0.2.2; each call owns its detector and bitmap. */
-internal class FaceCheckClient(private val context: Context) {
+/**
+ * Full-resolution face detection on the upright bitmap (EXIF applied). Returns
+ * the image size and raw face boxes in upright pixels; the JS layer normalizes
+ * and sorts. Each call owns its detector and bitmap, so calls may overlap.
+ */
+internal class FaceDetectionClient(private val context: Context) {
   private fun failure(code: String, cause: Exception) =
-    RuntimeException("$code:mlkit-vision:${cause.message ?: "Face check failed"}", cause)
+    RuntimeException("$code:mlkit-vision:${cause.message ?: "Face detection failed"}", cause)
 
-  suspend fun detectFaces(imageUri: String, minPixelSize: Double): Map<String, Any?> = withContext(Dispatchers.IO) {
+  suspend fun detectFaces(imageUri: String): Map<String, Any?> = withContext(Dispatchers.IO) {
     val bitmap = try { loadImage(imageUri) } catch (e: Exception) {
       throw failure("IMAGE_DECODE_FAILED", e)
     }
     try {
       val width = bitmap.width.toDouble()
       val height = bitmap.height.toDouble()
-      if (width * height < minPixelSize) {
-        return@withContext mapOf("width" to width, "height" to height, "faces" to emptyList<Any>())
-      }
       val faces = try {
         val detector = FaceDetection.getClient(FaceDetectorOptions.Builder()
           .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE).build())
@@ -59,10 +60,10 @@ internal class FaceCheckClient(private val context: Context) {
     fun openStream(): InputStream? = when (uri.scheme) {
       "file", null -> File(uri.path ?: imageUri).inputStream()
       "content" -> context.contentResolver.openInputStream(uri)
-      else -> throw IllegalArgumentException("Face checks require a local image")
+      else -> throw IllegalArgumentException("Face detection requires a local image")
     }
     val decoded = openStream()?.use { BitmapFactory.decodeStream(it) }
-      ?: throw IllegalArgumentException("Could not decode the face-check image")
+      ?: throw IllegalArgumentException("Could not decode the image")
     try {
       val orientation = openStream()?.use { ExifInterface(it).getAttributeInt(
         ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL

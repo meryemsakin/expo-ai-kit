@@ -4,7 +4,7 @@ export const siteConfig = {
   name: "expo-ai-kit",
   title: "expo-ai-kit: On-device AI for React Native",
   description:
-    "LLMs, speech-to-text, vision and face checks, and embeddings for React Native and Expo. Runs on the device with no API key.",
+    "LLMs, speech-to-text, vision, and embeddings for React Native and Expo. Runs on the device with no API key.",
   url: "https://expo-ai-kit.dev",
   author: {
     name: "Said Kaban",

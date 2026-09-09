@@ -9,7 +9,7 @@ export default function AndroidSetupPage() {
     <h1>Android setup</h1>
     <p>Follow <Link href="/get-started">Get Started</Link> to install and build. All features are off by default: the library compiles only the options you turn on. It follows your app&apos;s <code>minSdkVersion</code> (Expo&apos;s floor is 24); the <code>llm</code> and <code>speech</code> options raise it to 26.</p>
     <h2 id="configuration">Build options</h2>
-    <p>Enable only what your app uses. For example, to add image operations and face checks:</p>
+    <p>Enable only what your app uses. For example, to add image operations and face detection:</p>
     <CodeBlock language="json" filename="app.json">{`{
   "expo": {
     "plugins": [["expo-ai-kit", { "vision": true }]]
@@ -26,11 +26,11 @@ export default function AndroidSetupPage() {
     <p>Without Expo prebuild, set the relevant properties directly in <code>android/gradle.properties</code>:</p>
     <CodeBlock language="properties">{`# Enable text generation:
 expoAiKit.llm=true
-# Enable image operations and face checks:
+# Enable image operations and face detection:
 expoAiKit.vision=true`}</CodeBlock>
     <p>The other properties are <code>expoAiKit.speech</code> and <code>expoAiKit.androidEmbeddings</code>. Speech also needs <code>android.permission.RECORD_AUDIO</code> in your manifest. The <code>llm</code> and <code>speech</code> options need <code>minSdkVersion</code> 26. iOS reads <code>expoAiKit.llm</code> from <code>ios/Podfile.properties.json</code>; see the <Link href="/api#config-plugin">config reference</Link>.</p>
     <h2 id="models">Model preparation</h2>
-    <p>Await <code>prepareBuiltInModel()</code> for built-in text. Vision background removal and OCR need <code>prepareVision()</code> and Google Play services. Image labels and face checks work immediately after the native build.</p>
+    <p>Await <code>prepareBuiltInModel()</code> for built-in text. Vision background removal and OCR need <code>prepareVision()</code> and Google Play services. Image labels and face detection work immediately after the native build.</p>
     <p>See <Link href="/guides/speech">speech</Link>, <Link href="/guides/vision">vision</Link>, <Link href="/guides/embeddings">embeddings</Link>, and <Link href="/guides/models">downloadable models</Link> for their lifecycles. For device restrictions and errors, see <Link href="/guides/platform-support">platform support</Link> and <Link href="/troubleshooting">troubleshooting</Link>.</p>
   </DocsLayout>;
 }

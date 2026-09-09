@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.17.0
+
+### Changed
+
+- **Breaking: `checkFace()` is replaced by `detectFaces({ uri })`.** The library now only
+  detects: the result is `{ width, height, faces }` with every face box in normalized and pixel
+  coordinates (largest first, plus `confidence` on iOS), the same `{ uri }` input as the other
+  vision calls, and no thresholds or statuses. A "one dominant face" or minimum-size rule is a few
+  lines in the app; the face detection guide shows it. The vision feature is `face-detection` and
+  availability reports `faceDetection`. `FaceCheckStatus`, `FaceCheckResult`, `FaceBounds`, and
+  `CheckFaceOptions` are removed.
+
 ## 0.16.0
 
 ### Added
