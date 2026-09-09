@@ -6,7 +6,7 @@ duplicate those records here.
 
 `expo-ai-kit` provides on-device AI for Expo and React Native as a set of capabilities, currently
 LLM (chat, structured output, tool calling), speech-to-text, vision (background removal, image
-labels, OCR), and embeddings,
+labels, OCR, face checks), and embeddings,
 across Apple Foundation Models, Apple SpeechAnalyzer, Apple Vision, ML Kit (Prompt API, GenAI Speech
 Recognition, Vision), and downloadable or custom LiteRT-LM models on iOS and Android. Developer-facing
 material (README, docs site, npm metadata, `llms.txt`) presents the capabilities in that order and
@@ -68,7 +68,9 @@ a side effect of unrelated work.
   that downloads (Google Play services models); `removeBackground`/`recognizeText` throw
   `MODEL_NOT_DOWNLOADED` instead of downloading. Vision never holds the generation or speech
   guards. Cutouts are written to the app cache and returned as `file://` URIs, pixel buffers do
-  not cross the bridge. Coordinates in results are normalized (origin top-left, 0–1).
+  not cross the bridge. Coordinates are normalized (origin top-left, 0–1), except `checkFace()` bounds,
+  which retain upright image pixels for expo-face-check compatibility. Face checks use a bundled
+  Android detector and need no preparation, permissions, or generation guard.
 - **The AI SDK provider preserves core behavior.** `src/ai/` must stay a thin adapter over the public
   inference and embedding primitives. Imports from `@ai-sdk/provider` must remain type-only so the
   zero-runtime-dependency contract holds.
@@ -110,7 +112,7 @@ preference is not a ban on a well-designed stateful-session primitive.
 
 Keep exactly one roadmap item active. Do not start or add a later item while it is active.
 
-- **Next:** _(none, awaiting the maintainer's next item)_
+- **Next:** Integrate expo-face-check with Aura-compatible behavior, simplify documentation with React Native first, and prepare Aura's migration PR.
 
 When the item is complete, clear the `Next` value, report completion, and ask the maintainer for exactly
 one next item. Do not retain completed items or release history in this section.

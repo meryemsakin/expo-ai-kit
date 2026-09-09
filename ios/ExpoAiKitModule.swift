@@ -934,6 +934,12 @@ public class ExpoAiKitModule: Module {
       return self.visionClient.availability()
     }
 
+    AsyncFunction("detectFaces") { (uri: String, minPixelSize: Double) async throws -> [String: Any] in
+      return try await Task.detached(priority: .userInitiated) {
+        try FaceCheckClient.detectFaces(uri: uri, minPixelSize: minPixelSize)
+      }.value
+    }
+
     AsyncFunction("prepareVision") { (features: [String], languages: [String]) async throws in
       // iOS ships every vision model with the OS: nothing to download. Validate
       // the requested features so unsupported devices fail the same way Android does.

@@ -21,11 +21,12 @@ import type {
   VisionUnavailableReason,
 } from './types';
 
-/** The three vision features, in the order prepareVision() prepares them. */
+/** Vision features, in the order prepareVision() prepares them. */
 export const VISION_FEATURES: readonly VisionFeature[] = [
   'background-removal',
   'image-labeling',
   'text-recognition',
+  'face-check',
 ];
 
 /**
@@ -300,11 +301,17 @@ export function normalizeVisionAvailability(raw: unknown): VisionAvailability {
     backgroundRemoval: normalizeVisionFeatureAvailability(map.backgroundRemoval),
     imageLabeling: normalizeVisionFeatureAvailability(map.imageLabeling),
     textRecognition: normalizeVisionFeatureAvailability(map.textRecognition),
+    faceCheck: normalizeVisionFeatureAvailability(map.faceCheck),
   };
 }
 
 /** The availability every feature reports for one reason (web, flag off). */
 export function unavailableVisionAvailability(reason: VisionUnavailableReason): VisionAvailability {
   const entry: VisionFeatureAvailability = { status: 'unavailable', reason };
-  return { backgroundRemoval: entry, imageLabeling: entry, textRecognition: entry };
+  return {
+    backgroundRemoval: entry,
+    imageLabeling: entry,
+    textRecognition: entry,
+    faceCheck: entry,
+  };
 }

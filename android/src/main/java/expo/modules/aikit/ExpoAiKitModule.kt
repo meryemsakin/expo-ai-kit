@@ -676,7 +676,8 @@ class ExpoAiKitModule : Module() {
         return@Coroutine mapOf(
           "backgroundRemoval" to notEnabled,
           "imageLabeling" to notEnabled,
-          "textRecognition" to notEnabled
+          "textRecognition" to notEnabled,
+          "faceCheck" to notEnabled
         )
       }
       backend.availability()
@@ -694,6 +695,10 @@ class ExpoAiKitModule : Module() {
     AsyncFunction("getSupportedTextRecognitionLanguagesNative") Coroutine { ->
       // ML Kit has no enumeration API; the JS registry answers on Android.
       emptyList<String>()
+    }
+
+    AsyncFunction("detectFaces") Coroutine { uri: String, minPixelSize: Double ->
+      requireVisionBackend().detectFaces(uri, minPixelSize)
     }
 
     AsyncFunction("removeBackground") Coroutine {

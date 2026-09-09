@@ -652,8 +652,37 @@ export type NormalizedPoint = { x: number; y: number };
 /** Rectangle in source-image pixels. */
 export type PixelRect = { x: number; y: number; width: number; height: number };
 
-/** The three on-device vision features. */
-export type VisionFeature = 'background-removal' | 'image-labeling' | 'text-recognition';
+/** On-device vision features. */
+export type VisionFeature =
+  | 'background-removal'
+  | 'image-labeling'
+  | 'text-recognition'
+  | 'face-check';
+
+export type FaceCheckStatus = 'READY' | 'NO_FACE' | 'MULTIPLE_FACES' | 'LOW_QUALITY';
+
+/** Upright image pixels, origin top-left. Matches expo-face-check (not normalized). */
+export interface FaceBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface FaceCheckResult {
+  status: FaceCheckStatus;
+  /** Number of dominant faces, excluding smaller background faces. */
+  faceCount: number;
+  /** Present only for READY. Coordinates are in upright image pixels. */
+  dominantFaceBounds?: FaceBounds;
+}
+
+export interface CheckFaceOptions {
+  /** Minimum image width × height. Default: 500_000. This does not measure blur. */
+  minPixelSize?: number;
+  /** Count faces whose area / largest area is strictly greater than this value (0–1). Default: 0.2. */
+  areaThreshold?: number;
+}
 
 /** Why a vision feature is unavailable on this device. */
 export type VisionUnavailableReason =
@@ -663,7 +692,7 @@ export type VisionUnavailableReason =
   | 'os-version'
   /**
    * OS is new enough but this device cannot run the feature: the iOS Simulator
-   * (background removal and image labeling, Vision's neural requests need a
+   * (background removal, image labeling, and face checks, Vision's neural requests need a
    * physical device; text recognition works there), or Android without Google
    * Play services (background removal and text recognition).
    */
@@ -686,6 +715,7 @@ export type VisionAvailability = {
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
+  faceCheck: VisionFeatureAvailability;
 };
 
 export type PrepareVisionOptions = {

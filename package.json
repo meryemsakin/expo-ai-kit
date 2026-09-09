@@ -1,7 +1,7 @@
 {
   "name": "expo-ai-kit",
-  "version": "0.15.1",
-  "description": "On-device AI for Expo & React Native in one import: chat with local LLMs, typed JSON output, tool calling for on-device agents, speech-to-text, background removal, image labels, OCR, embeddings and semantic search. Apple Foundation Models, Apple Vision, SpeechAnalyzer, ML Kit, LiteRT-LM. No API keys, no cloud.",
+  "version": "0.16.0",
+  "description": "On-device AI for React Native and Expo: LLMs, speech-to-text, vision and face checks, and embeddings. No API key. Zero runtime JavaScript dependencies.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "files": [
@@ -79,7 +79,9 @@
     "ai-sdk",
     "vercel-ai-sdk",
     "ai-sdk-provider",
-    "expo-ai-kit"
+    "expo-ai-kit",
+    "face-detection",
+    "face-check"
   ],
   "repository": "https://github.com/saidkaban/expo-ai-kit",
   "bugs": {

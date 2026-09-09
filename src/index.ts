@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import ExpoAiKitModule, { type NativeGenerationConfig } from './ExpoAiKitModule';
 import { isValidEmbeddingTask, EMBEDDING_TASKS, normalizeLanguageTag } from './embedding';
 import { parseNativeErrorMessage } from './errors';
+import { classifyFaces, resolveCheckFaceOptions, validateFaceImage } from './face';
 import {
   ANDROID_EMBEDDING_MODEL,
   composeAndroidEmbeddingRevision,
@@ -33,6 +34,7 @@ import {
   buildToolArgsRepair,
   formatToolResult,
 } from './tools';
+import type { CheckFaceOptions, FaceCheckResult } from './types';
 import {
   LLMMessage,
   LLMSendOptions,
@@ -1699,6 +1701,25 @@ export function streamTranscription(
 // cross the bridge.
 
 const VISION_MODEL_IDS = new Set(['apple-vision', 'mlkit-vision']);
+
+/**
+ * Check a local photo for one dominant face, using the expo-face-check API.
+ * Enable `vision` on Android and rebuild; no model download or permissions required.
+ * Bounds use upright image pixels. LOW_QUALITY checks image resolution only.
+ * Independent of generation and speech; multiple photos may be checked concurrently.
+ */
+export async function checkFace(
+  imageUri: string,
+  options?: CheckFaceOptions
+): Promise<FaceCheckResult> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    throw visionUnsupportedPlatformError('checkFace');
+  }
+  const uri = validateFaceImage(imageUri, Platform.OS);
+  const resolved = resolveCheckFaceOptions(options);
+  const detected = await wrapNative(() => ExpoAiKitModule.detectFaces(uri, resolved.minPixelSize));
+  return classifyFaces(detected, resolved);
+}
 
 function visionUnsupportedPlatformError(fn: string): ModelError {
   return new ModelError('DEVICE_NOT_SUPPORTED', '', `${fn}() is only available on iOS and Android`);
