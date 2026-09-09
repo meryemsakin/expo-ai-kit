@@ -24,6 +24,7 @@ const headings = [
   { id: "removebackground", text: "removeBackground()", level: 3 },
   { id: "labelimage", text: "labelImage()", level: 3 },
   { id: "recognizetext", text: "recognizeText()", level: 3 },
+  { id: "checkface", text: "checkFace()", level: 3 },
   { id: "vision-lifecycle", text: "Vision lifecycle", level: 3 },
   { id: "embeddings", text: "Embeddings", level: 2 },
   { id: "embed", text: "embed()", level: 3 },
@@ -330,7 +331,7 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
         Background removal, image labels, and text recognition (OCR) with Apple
         Vision on iOS and ML Kit on Android. Android is opt-in via the config
         plugin&apos;s <code>vision</code> flag; iOS needs nothing. Independent of
-        the LLM and speech guards. Every call takes an image as{" "}
+        the LLM and speech guards. Image operations take an image as{" "}
         <code>{`{ uri }`}</code> (a <code>file://</code> URI or path). See the{" "}
         <a href="/guides/vision" className="text-accent hover:underline">
           Vision guide
@@ -416,11 +417,28 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
 }>`}
       </CodeBlock>
 
+      <h3 id="checkface">checkFace()</h3>
+      <p>Check a local image for one dominant face. No preparation or download needed. Enable vision on Android and rebuild. See <a href="/guides/face-check">the face-check guide</a>.</p>
+      <CodeBlock language="typescript">{`function checkFace(imageUri: string, options?: CheckFaceOptions): Promise<FaceCheckResult>
+
+type FaceCheckStatus = 'READY' | 'NO_FACE' | 'MULTIPLE_FACES' | 'LOW_QUALITY';
+interface CheckFaceOptions {
+  minPixelSize?: number;   // Minimum image width × height; default 500_000
+  areaThreshold?: number; // Strict area/largestArea threshold, 0–1; default 0.2
+}
+interface FaceBounds { x: number; y: number; width: number; height: number }
+interface FaceCheckResult {
+  status: FaceCheckStatus;
+  faceCount: number;               // Dominant faces only
+  dominantFaceBounds?: FaceBounds; // READY only; upright image pixels, top-left origin
+}`}</CodeBlock>
+      <p>The URI string and pixel bounds preserve expo-face-check compatibility. LOW_QUALITY checks image resolution only. Runtime failures use IMAGE_DECODE_FAILED, VISION_FAILED, VISION_NOT_ENABLED, or DEVICE_NOT_SUPPORTED.</p>
+
       <h3 id="vision-lifecycle">Vision lifecycle</h3>
       <p>
         Per-feature availability and the one call that downloads. Android&apos;s
         segmentation and OCR models are Google Play services modules installed
-        by <code>prepareVision()</code>; the label model is bundled; iOS ships
+        by <code>prepareVision()</code>; the label and face models are bundled; iOS ships
         everything with the OS and resolves immediately.
       </p>
       <CodeBlock language="typescript">
@@ -428,6 +446,7 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
+  faceCheck: VisionFeatureAvailability;
 }>
 // VisionFeatureAvailability =
 //   | { status: 'available' }
@@ -435,7 +454,7 @@ function requestSpeechPermissionsAsync(): Promise<SpeechPermissionResponse>`}
 //   | { status: 'unavailable'; reason: 'platform' | 'os-version' | 'device' | 'not-enabled' }
 
 function prepareVision(options?: {
-  features?: ('background-removal' | 'image-labeling' | 'text-recognition')[]; // default: all
+  features?: ('background-removal' | 'image-labeling' | 'text-recognition' | 'face-check')[]; // default: all
   languages?: string[];                      // OCR script models to fetch (Android)
   onProgress?: (progress: number) => void;   // 0–1
 }): Promise<void>
@@ -902,6 +921,7 @@ type VisionAvailability = {
   backgroundRemoval: VisionFeatureAvailability;
   imageLabeling: VisionFeatureAvailability;
   textRecognition: VisionFeatureAvailability;
+  faceCheck: VisionFeatureAvailability;
 };
 type PrepareVisionOptions = {
   features?: VisionFeature[]; languages?: string[]; onProgress?: (progress: number) => void;

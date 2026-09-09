@@ -13,7 +13,6 @@ export const metadata = createPageMetadata(
 
 const headings = [
   { id: "overview", text: "Overview", level: 2 },
-  { id: "typed-output-and-agents", text: "Typed Output and Agents", level: 2 },
   { id: "availability", text: "Availability & Preparation", level: 2 },
   { id: "generate", text: "Generate", level: 2 },
   { id: "stream", text: "Stream", level: 2 },
@@ -57,24 +56,6 @@ export default function LlmPage() {
           Multi-turn guide
         </Link>{" "}
         shows the patterns.
-      </p>
-
-      <h2 id="typed-output-and-agents">Typed output and agents</h2>
-      <p>
-        Chat is the smallest thing the LLM does. The same model and the same
-        message shape also power{" "}
-        <Link href="/guides/structured-output" className="text-accent hover:underline">
-          structured output
-        </Link>
-        , where <code>generateObject()</code> returns a typed object validated
-        against your JSON Schema, and{" "}
-        <Link href="/guides/tool-calling" className="text-accent hover:underline">
-          tool calling
-        </Link>
-        , where <code>generateText()</code> runs a bounded agent loop: the
-        model calls functions you provide, gets the results back, and answers
-        from them. Both run on the device, with the same availability and
-        preparation steps as below.
       </p>
 
       <h2 id="availability">Availability &amp; preparation</h2>

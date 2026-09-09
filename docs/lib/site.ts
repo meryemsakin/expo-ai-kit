@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 
 export const siteConfig = {
   name: "expo-ai-kit",
-  title: "expo-ai-kit: On-device AI for Expo & React Native",
+  title: "expo-ai-kit: On-device AI for React Native",
   description:
-    "A local LLM, speech-to-text, vision (background removal, image labels, OCR), and embeddings running on-device in Expo and React Native apps.",
+    "LLMs, speech-to-text, vision and face checks, and embeddings for React Native and Expo. Runs on the device with no API key.",
   url: "https://expo-ai-kit.dev",
   author: {
     name: "Said Kaban",

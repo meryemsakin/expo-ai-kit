@@ -1,13 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.16.0
+
+### Added
+
+- `checkFace(imageUri, options?)`: the on-device photo check from expo-face-check, under Vision.
+  Keeps READY / NO_FACE / MULTIPLE_FACES / LOW_QUALITY, the 500,000-pixel floor, strict area
+  threshold, and upright pixel bounds. iOS uses Apple Vision; Android bundles ML Kit Face
+  Detection behind the existing `vision` option. No model download or added permission.
+- `faceCheck` availability and the `face-check` preparation feature (a no-op for bundled models).
 
 ### Changed
 
-- **Docs:** typed JSON output and tool calling (the on-device agent loop) are presented up front in
-  the README, docs landing, sidebar, and LLM guide instead of at the end of the LLM section, with an
-  "offline assistant" recipe (speech feeds an agent). The maintainer attribution lines are gone; the
-  project is credited as open source only.
+- Shorter README, homepage, installation, and platform guides, with React Native named first.
+  Capability demos move to Examples; detailed API material remains in the reference.
+- Android uses the supported Expo module Gradle plugin instead of the removed legacy script.
+- Migrating from expo-face-check uses expo-ai-kit's typed runtime errors and local-only image
+  input. Android vision now also bundles the face detector; the library requires API 26+.
+
+## 0.15.1
+
+### Changed
+
+- Docs presented typed JSON and tool calling earlier in the LLM section.
 
 ## 0.15.0
 

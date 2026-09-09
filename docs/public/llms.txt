@@ -1,120 +1,66 @@
 # expo-ai-kit
 
-> On-device AI for Expo and React Native. Capabilities: LLM (chat, typed JSON output,
-> tool calling for on-device agents), Speech (speech-to-text), Vision (background removal, image labels, OCR), and
-> Embeddings (semantic search, retrieval). Runs locally on iOS and Android on Apple Foundation
-> Models, Apple Vision, Apple SpeechAnalyzer, Apple NLContextualEmbedding, ML Kit (Prompt API,
-> GenAI Speech Recognition, Vision), EmbeddingGemma, and downloadable/custom LiteRT-LM models
-> (Gemma, Qwen, Phi). Zero runtime dependencies, typed errors, TypeScript-first, and a Vercel AI
-> SDK provider (LanguageModelV3 + EmbeddingModelV3 + TranscriptionModelV3). No API keys, no
-> cloud.
+> On-device AI for React Native and Expo: LLMs, speech-to-text, vision, and embeddings.
+> Native module, no API key, zero runtime JavaScript dependencies.
 
-Install: `npx expo install expo-ai-kit` (native module, needs a development build, not Expo Go).
+Install: `npx expo install expo-ai-kit`. Requires Expo SDK 54+ or compatible Expo modules
+in a React Native app. Use a native development/production build, not Expo Go.
+Android minimum API 26. Device and OS support vary by feature.
 
-## Everything in one import
+## LLM
 
-```ts
-import {
-  sendMessage, streamMessage, generateObject, generateText, // LLM
-  transcribe, streamTranscription,                          // Speech
-  removeBackground, labelImage, recognizeText,              // Vision
-  embed, chunkText, createVectorStore,                      // Embeddings
-} from 'expo-ai-kit';
-```
+- [Generate text](https://expo-ai-kit.dev/guides/llm): sendMessage, streamMessage.
+- [Structured output](https://expo-ai-kit.dev/guides/structured-output): generateObject(messages, jsonSchema).
+- [Tool calling](https://expo-ai-kit.dev/guides/tool-calling): generateText(messages, { tools, maxSteps }).
+- [Conversations](https://expo-ai-kit.dev/guides/multi-turn): pass the complete message history on each call.
 
-## Choose a function
+Check isAvailable(), then await prepareBuiltInModel() before built-in generation.
+Built-ins: Apple Foundation Models on Apple Intelligence devices with iOS 26+;
+ML Kit Prompt API on supported Android devices. Downloadable models use LiteRT-LM.
+All generation APIs share one guard and reject overlap with INFERENCE_BUSY.
+setModel owns activation and generation settings. The message APIs are stateless.
 
-- Chat / generate / stream text → `sendMessage`, `streamMessage` (after `isAvailable` + `prepareBuiltInModel`).
-- Need a typed object from the model → `generateObject(messages, jsonSchema)`.
-- Let the model call app functions (bounded agent loop, `maxSteps`) → `generateText(messages, { tools })`.
-- Voice → text, live → `streamTranscription`; from a file → `transcribe` (flag `speech`).
-- Cut the subject out of a photo → `removeBackground` (flag `vision` on Android; iOS 17+ device).
-- What is in a photo → `labelImage`; text in a photo (OCR) → `recognizeText`.
-- Semantic search over app data → `embed` + `chunkText` + `createVectorStore`.
-- Use a specific open model → `getRecommendedModel` / `downloadModel` / `setModel`, or `registerModel`.
-- Already on the Vercel AI SDK → `expoAiKit()` from `expo-ai-kit/ai`.
+## Speech
 
-## Capabilities
+- [Speech-to-text](https://expo-ai-kit.dev/guides/speech): transcribe files, streamTranscription from the microphone.
 
-- LLM: `sendMessage`, `streamMessage` (stateless, pass full history each call),
-  `generateText` (bounded tool-calling loop), `generateObject` (JSON-Schema-validated objects
-  with repair loop). Check `isAvailable()` and await `prepareBuiltInModel()` first. Built-in
-  engines: Apple Foundation Models (iOS 26+), ML Kit Prompt API (Android); or downloadable
-  LiteRT-LM models on both platforms via `setModel`.
-- Speech (opt-in plugin flag `speech`): `transcribe({ audio: { uri | base64 }, locale?,
-  signal? })` for files; `streamTranscription(onUpdate, { locale? })` for live mic
-  (updates carry the full transcript; `isFinal` marks committed segments);
-  `getSpeechRecognitionAvailability`, `prepareSpeechRecognition`, `getSupportedSpeechLocales`,
-  `get/requestSpeechPermissionsAsync`. iOS 26+ SpeechAnalyzer (fast, timestamped segments,
-  no permission for files); Android 12+ ML Kit (text-only, real-time-rate file ingestion,
-  a 60s file takes ~60s; needs RECORD_AUDIO even for files; auto-upgrades to Gemini Nano).
-- Vision (opt-in plugin flag `vision` on Android; iOS needs nothing):
-  `removeBackground({ uri }, { subject?: {x,y}, mask?, trim?, format?: 'png'|'jpeg', quality?,
-  maxPixels? })` → cutout written to the app cache and returned as `{ uri, maskUri?, width, height,
-  sourceWidth, sourceHeight, bounds, pixelBounds, foregroundCoverage, centroid, instanceCount,
-  trimOrigin }` (PNG keeps transparency; `subject` keeps only the subject under a normalized
-  point, e.g. a tap; `mask: true` also writes the grayscale mask PNG); `labelImage({ uri }, { maxResults?, minConfidence? })` → `[{ label, confidence }]`
-  sorted by confidence; `recognizeText({ uri }, { languages?, minTextHeight?, recognitionLevel?,
-  usesLanguageCorrection?, customWords? })` → `{ text, blocks: [{ text, bounds, lines, language?,
-  cornerPoints? }] }` with normalized top-left bounds; `getVisionAvailability()` (per-feature
-  status), `prepareVision({ features?, languages?, onProgress? })` (the only downloading call,
-  Android Google Play services models; iOS resolves at once), `getSupportedTextRecognitionLanguages`.
-  iOS: Vision framework, background removal iOS 17+; background removal and labels need a
-  physical device (the Simulator reports `device`); OCR runs everywhere.
-  Android: ML Kit, Subject Segmentation and Text Recognition v2 (Latin/Chinese/Japanese/Korean/
-  Devanagari) are Play services modules; Image Labeling is bundled and works offline at once.
-  Vision calls never hold the text or speech guards.
-- Embeddings: `embed` (task-typed), `chunkText`, `cosineSimilarity`, `createVectorStore`;
-  iOS NLContextualEmbedding (iOS 17+), Android EmbeddingGemma 300M (opt-in flag
-  `androidEmbeddings` + `prepareEmbeddingModel`). Every result carries `model: { id, revision }`;
-  vectors compare only under identical identity.
-- Models: `isAvailable`, `prepareBuiltInModel`, `getBuiltInModels`, `getDownloadableModels`,
-  `getRecommendedModel`, `downloadModel`, `setModel`, `unloadModel`, `deleteModel`,
-  `registerModel` (bring-your-own LiteRT-LM with SHA-256 pin).
-- Vercel AI SDK provider from `expo-ai-kit/ai`: `expoAiKit()` → LanguageModelV3;
-  `expoAiKit.embeddingModel()`; `expoAiKit.transcriptionModel()` (AI SDK `transcribe()`).
-  Works with AI SDK 6 and 7. Vision has no AI SDK model type, use the core functions.
+Enable the speech plugin option and rebuild. Check getSpeechRecognitionAvailability;
+prepareSpeechRecognition downloads when needed. Request microphone permission for live input
+and Android file input. iOS 26+: timestamps and faster-than-real-time files. Android 12+:
+text only, files ingested at real-time rate. Live updates contain the full transcript so far.
+Speech has its own single-flight guard (SPEECH_BUSY).
 
-## Recipes (combining capabilities)
+## Vision
 
-- Voice memo → summary: `transcribe` then `generateObject` on `result.text`.
-- Receipt scanner: `recognizeText` then `generateObject` on `result.text`.
-- Photo search by meaning: `labelImage` → join labels → `embed` (task retrieval-document) → vector store;
-  query with `embed` (task retrieval-query) + `store.search`.
-- Product cutout: `removeBackground({ uri })` → PNG with alpha at `result.uri`.
-- Local assistant with actions: `generateText(messages, { tools })`; omit `execute` to gate a tool call.
+- [Images](https://expo-ai-kit.dev/guides/vision): removeBackground, labelImage, recognizeText.
+- [Face checks](https://expo-ai-kit.dev/guides/face-check): checkFace(imageUri, { minPixelSize?, areaThreshold? }).
 
-## Contracts agents can rely on
+Enable vision on Android and rebuild. No new permissions. iOS needs no plugin option.
+getVisionAvailability reports backgroundRemoval, imageLabeling, textRecognition, and faceCheck.
+prepareVision is the only call that downloads: Android segmentation and OCR use Play services
+models. Image labeling and face detection are bundled and work without preparation.
+Other vision calls accept { uri }; checkFace accepts a URI string for expo-face-check compatibility.
+checkFace returns READY, NO_FACE, MULTIPLE_FACES, or LOW_QUALITY; defaults: minPixelSize 500000,
+areaThreshold 0.2. faceCount counts only faces with area/largestArea strictly greater than the
+threshold. Bounds appear only for READY and use upright image pixels, origin top-left.
+Face checks require a physical iOS device. Other vision bounds are normalized 0–1. LOW_QUALITY measures total image pixels, not blur.
+Vision is independent of generation and speech. Face checks may run concurrently.
 
-- Every failure throws `ModelError` with a typed `.code`: MODEL_NOT_FOUND, MODEL_NOT_DOWNLOADED,
-  DOWNLOAD_FAILED, DOWNLOAD_CORRUPT, DOWNLOAD_STORAGE_FULL, DOWNLOAD_CANCELLED, INFERENCE_OOM,
-  INFERENCE_FAILED, INFERENCE_BUSY, INFERENCE_CANCELLED, MODEL_LOAD_FAILED, DEVICE_NOT_SUPPORTED,
-  EMBEDDINGS_NOT_ENABLED, LANGUAGE_NOT_SUPPORTED, SPEECH_BUSY, SPEECH_NOT_ENABLED,
-  MIC_PERMISSION_DENIED, AUDIO_DECODE_FAILED, TRANSCRIPTION_FAILED, VISION_NOT_ENABLED,
-  IMAGE_DECODE_FAILED, NO_SUBJECT_FOUND, VISION_FAILED, UNKNOWN.
-  Nothing resolves with placeholder or empty text on failure.
-- One text generation at a time (INFERENCE_BUSY); one speech session at a time (SPEECH_BUSY);
-  the two guards are independent, so voice → LLM pipelines work. `embed()` and every vision call
-  are independent of both.
-- Availability is explicit: check `isAvailable()` / `getSpeechRecognitionAvailability()` /
-  `getVisionAvailability()` / `getEmbeddingModelStatus()` and call the matching `prepare*()`
-  before first use. Only `prepare*()` calls download anything.
-- Config plugin: `["expo-ai-kit", { "speech": true, "vision": true, "androidEmbeddings": true }]`.
-  Each flag is opt-in and requires a new native build (not OTA). Without a flag the matching
-  APIs throw SPEECH_NOT_ENABLED / VISION_NOT_ENABLED / EMBEDDINGS_NOT_ENABLED.
-- Platform floors: library iOS 15.1+ / Android API 26+; Apple Foundation Models iOS 26+ on
-  Apple-Intelligence devices; SpeechAnalyzer iOS 26+; ML Kit speech Android 12+ (API 31);
-  Vision background removal iOS 17+; Android vision needs Google Play services except labeling.
+## Embeddings
 
-## Links
+- [Embeddings](https://expo-ai-kit.dev/guides/embeddings): embed, chunkText, cosineSimilarity, createVectorStore.
 
-- Docs: https://expo-ai-kit.dev
-- LLM guide: https://expo-ai-kit.dev/guides/llm
-- Speech guide: https://expo-ai-kit.dev/guides/speech
-- Vision guide: https://expo-ai-kit.dev/guides/vision
-- Embeddings guide: https://expo-ai-kit.dev/guides/embeddings
-- API reference: https://expo-ai-kit.dev/api
-- AI SDK guide: https://expo-ai-kit.dev/guides/vercel-ai-sdk
-- Troubleshooting: https://expo-ai-kit.dev/troubleshooting
-- Source: https://github.com/saidkaban/expo-ai-kit
-- Changelog: https://github.com/saidkaban/expo-ai-kit/blob/main/CHANGELOG.md
+iOS 17+: NLContextualEmbedding. Android: enable androidEmbeddings, rebuild, and call
+prepareEmbeddingModel explicitly for the EmbeddingGemma download. embed never downloads
+implicitly. Persist { id, revision } with vectors; compare only identical model identities.
+
+## Reference
+
+- [Installation](https://expo-ai-kit.dev/get-started)
+- [Models](https://expo-ai-kit.dev/guides/models)
+- [Platform support](https://expo-ai-kit.dev/guides/platform-support)
+- [AI SDK provider](https://expo-ai-kit.dev/guides/vercel-ai-sdk): expo-ai-kit/ai, same core lifecycle and guards.
+- [API reference](https://expo-ai-kit.dev/api): signatures, config plugin, types, typed ModelError codes.
+- [Examples](https://expo-ai-kit.dev/examples)
+- [Troubleshooting](https://expo-ai-kit.dev/troubleshooting)
+- [GitHub](https://github.com/saidkaban/expo-ai-kit)

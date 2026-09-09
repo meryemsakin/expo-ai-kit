@@ -43,7 +43,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 
   return (
     <nav className="hidden xl:block w-56 flex-shrink-0">
-      <div className="sticky top-20 pl-4 border-l border-border">
+      <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pl-4 pr-3 border-l border-border">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
           On this page
         </p>
