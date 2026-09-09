@@ -456,7 +456,9 @@ export default function App() {
     setError(null);
     try { await fn(); }
     catch (e: any) { setError(e?.message ?? String(e)); }
-    finally { setBusy(null); await refresh(); }
+    // refresh() rejects with LLM_NOT_ENABLED in a build without the llm
+    // option; the mount-time call already shows that, so keep it quiet here.
+    finally { setBusy(null); await refresh().catch(() => {}); }
   };
 
   const doDownload = () => withBusy('downloading', async () => {
