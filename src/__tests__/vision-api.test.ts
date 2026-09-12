@@ -116,13 +116,26 @@ describe('prepareVision', () => {
     expect(native.prepareVision).not.toHaveBeenCalled();
   });
 
-  it('passes every feature by default and normalized languages', async () => {
+  it('prepares only the compiled-in features by default, with normalized languages', async () => {
+    native.getVisionAvailability.mockResolvedValue({
+      backgroundRemoval: { status: 'downloadable' },
+      imageLabeling: { status: 'unavailable', reason: 'not-enabled' },
+      textRecognition: { status: 'downloadable' },
+      faceDetection: { status: 'available' },
+    });
     native.prepareVision.mockResolvedValue(undefined);
     await prepareVision({ languages: ['ja_jp', 'EN'] });
     expect(native.prepareVision).toHaveBeenCalledWith(
-      ['background-removal', 'image-labeling', 'text-recognition', 'face-detection'],
+      ['background-removal', 'text-recognition', 'face-detection'],
       ['ja-JP', 'en']
     );
+  });
+
+  it('passes an explicit feature list through untouched, even if not enabled', async () => {
+    native.prepareVision.mockResolvedValue(undefined);
+    await prepareVision({ features: ['image-labeling'] });
+    expect(native.getVisionAvailability).not.toHaveBeenCalled();
+    expect(native.prepareVision).toHaveBeenCalledWith(['image-labeling'], []);
   });
 
   it('rejects unknown features with a plain Error before calling native', async () => {

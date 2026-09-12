@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.18.0
+
+### Added
+
+- **Per-feature `vision` option.** `["expo-ai-kit", { "vision": ["face-detection"] }]` compiles
+  only the named Android features (`background-removal`, `image-labeling`, `text-recognition`,
+  `face-detection`); each adds just its own ML Kit client and, for labeling and faces, its bundled
+  model. `"vision": true` still compiles every feature. A face-only build is about 14 MB smaller
+  per device than `true`. Features left out report `{ status: 'unavailable', reason:
+  'not-enabled' }` and their functions throw `VISION_NOT_ENABLED`; `prepareVision()` with no
+  explicit `features` now prepares only the compiled-in ones. Bare React Native sets
+  `expoAiKit.vision=face-detection,text-recognition` in `android/gradle.properties`.
+
+### Changed
+
+- The Android vision backend is split into one source set per feature behind a shared
+  coordinator; behavior of every vision call is unchanged.
+
 ## 0.17.0
 
 ### Changed

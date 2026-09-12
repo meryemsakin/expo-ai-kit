@@ -79,8 +79,9 @@ const { width, height, faces } = await detectFaces({ uri: photo.uri });
 // faces[0].bounds (normalized 0–1) and faces[0].pixelBounds, largest face first
 ```
 
-Enable `vision` on Android and rebuild. Face detection uses a bundled detector and needs no
-model download; rules such as "exactly one face" are a few lines in your app.
+Enable `vision` on Android and rebuild, or name only the features you use, for example
+`{ "vision": ["face-detection"] }`, so the app ships only that detector. Face detection uses a
+bundled model and needs no download; rules such as "exactly one face" are a few lines in your app.
 
 ## Embeddings
 
@@ -98,7 +99,7 @@ throw a typed `*_NOT_ENABLED` error. Changing an option requires a new native bu
 | --- | --- | --- |
 | `llm` | Text generation, JSON output, tool calling, model downloads, the AI SDK provider | LiteRT-LM runtime (about 30 MB of iOS arm64 code, 21 MB on Android); Android `minSdkVersion` 26 |
 | `speech` | `transcribe`, `streamTranscription` | Android ML Kit speech and microphone permission; iOS microphone usage string |
-| `vision` | Android `removeBackground`, `labelImage`, `recognizeText`, `detectFaces` | ML Kit vision clients with bundled face and label models; iOS needs no option |
+| `vision` | Android `removeBackground`, `labelImage`, `recognizeText`, `detectFaces` | `true` adds every ML Kit vision client and bundled model; an array such as `["face-detection"]` adds only those features. iOS needs no option |
 | `androidEmbeddings` | Android `embed` | MediaPipe TextEmbedder (about 25 MB); the model downloads at runtime |
 
 The [config reference](https://expo-ai-kit.dev/api#config-plugin) covers bare React Native

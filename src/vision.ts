@@ -128,7 +128,7 @@ export function isAndroidTextLanguageSupported(tag: string): boolean {
   return resolveSpeechLocale(tag, ANDROID_TEXT_RECOGNITION_LANGUAGES) !== undefined;
 }
 
-/** Validate the `features` option of prepareVision(); defaults to all three. */
+/** Validate the `features` option of prepareVision(); defaults to every feature. */
 export function resolveVisionFeatures(features?: readonly VisionFeature[]): VisionFeature[] {
   if (features === undefined) return [...VISION_FEATURES];
   if (!Array.isArray(features) || features.length === 0) {
@@ -314,4 +314,24 @@ export function unavailableVisionAvailability(reason: VisionUnavailableReason): 
     textRecognition: entry,
     faceDetection: entry,
   };
+}
+
+/**
+ * The features an availability report says are compiled into this build, in
+ * preparation order. `prepareVision()` with no explicit `features` prepares
+ * only these, so an Android app built with a subset (for example
+ * `{ "vision": ["face-detection"] }`) is not asked to install models for
+ * features it does not have.
+ */
+export function enabledVisionFeatures(availability: VisionAvailability): VisionFeature[] {
+  const byFeature: Record<VisionFeature, VisionFeatureAvailability> = {
+    'background-removal': availability.backgroundRemoval,
+    'image-labeling': availability.imageLabeling,
+    'text-recognition': availability.textRecognition,
+    'face-detection': availability.faceDetection,
+  };
+  return VISION_FEATURES.filter((feature) => {
+    const entry = byFeature[feature];
+    return !(entry.status === 'unavailable' && entry.reason === 'not-enabled');
+  });
 }

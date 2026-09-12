@@ -30,13 +30,28 @@ def androidEmbeddingsEnabled = (findProperty("expoAiKit.androidEmbeddings") ?: "
 // src/speech is not compiled.
 def speechEnabled = (findProperty("expoAiKit.speech") ?: "false").toString().toBoolean()
 
-// Opt-in vision (ML Kit Subject Segmentation, Image Labeling, Text Recognition
-// v2). The config plugin writes this property at prebuild when the app enables
-// ["expo-ai-kit", { "vision": true }]. Off (default): no ML Kit vision
-// dependency and src/vision is not compiled. On: the ML Kit clients plus the
-// bundled image-labeling model are added to the APK; the segmentation and OCR
-// models are Google Play services modules downloaded by prepareVision().
-def visionEnabled = (findProperty("expoAiKit.vision") ?: "false").toString().toBoolean()
+// Opt-in vision. The config plugin writes this property at prebuild:
+// "true" for ["expo-ai-kit", { "vision": true }] (every feature), or a
+// comma-separated subset for { "vision": ["face-detection", ...] } with the
+// names background-removal, image-labeling, text-recognition, face-detection.
+// Off (default): no ML Kit vision dependency and no vision source set is
+// compiled. Each feature adds only its own ML Kit client (and bundled model,
+// for labeling and faces) plus its source set; the segmentation and OCR models
+// are Google Play services modules downloaded by prepareVision().
+def visionProperty = (findProperty("expoAiKit.vision") ?: "false").toString().trim()
+def visionAllFeatures = ["background-removal", "image-labeling", "text-recognition", "face-detection"]
+def visionFeatures = visionProperty == "true" ? visionAllFeatures
+  : visionProperty == "false" || visionProperty.isEmpty() ? []
+  : visionProperty.split(",").collect { it.trim() }.findAll { !it.isEmpty() }
+def unknownVisionFeatures = visionFeatures - visionAllFeatures
+if (!unknownVisionFeatures.isEmpty()) {
+  throw new GradleException("expo-ai-kit: unknown expoAiKit.vision feature(s) ${unknownVisionFeatures}; valid names are ${visionAllFeatures}")
+}
+def visionEnabled = !visionFeatures.isEmpty()
+def visionSegmentation = visionFeatures.contains("background-removal")
+def visionLabeling = visionFeatures.contains("image-labeling")
+def visionText = visionFeatures.contains("text-recognition")
+def visionFaces = visionFeatures.contains("face-detection")
 
 android {
   namespace "expo.modules.aikit"
@@ -70,6 +85,22 @@ android {
       if (visionEnabled) {
         java.srcDirs += 'src/vision/java'
       }
+      // Google Play services module install, shared by segmentation and OCR.
+      if (visionSegmentation || visionText) {
+        java.srcDirs += 'src/vision-play/java'
+      }
+      if (visionSegmentation) {
+        java.srcDirs += 'src/vision-segmentation/java'
+      }
+      if (visionLabeling) {
+        java.srcDirs += 'src/vision-labeling/java'
+      }
+      if (visionText) {
+        java.srcDirs += 'src/vision-text/java'
+      }
+      if (visionFaces) {
+        java.srcDirs += 'src/vision-face/java'
+      }
     }
   }
 }
@@ -99,18 +130,30 @@ dependencies {
     implementation "com.google.mlkit:genai-speech-recognition:1.0.0-alpha1"
   }
   if (visionEnabled) {
-    // Same bundled face detector as expo-face-check 0.2.2: works offline immediately.
-    implementation "com.google.mlkit:face-detection:16.1.7"
+    // EXIF orientation for the legacy (API < 28) decode path.
     implementation "androidx.exifinterface:exifinterface:1.3.7"
-    // Subject segmentation and OCR are unbundled (Play services modules);
-    // image labeling ships its model with the app so it works offline at once.
-    implementation "com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1"
+  }
+  if (visionFaces) {
+    // Bundled face detector: works offline immediately.
+    implementation "com.google.mlkit:face-detection:16.1.7"
+  }
+  if (visionLabeling) {
+    // Image labeling ships its model with the app so it works offline at once.
     implementation "com.google.mlkit:image-labeling:17.0.9"
+  }
+  if (visionSegmentation) {
+    // Subject segmentation is unbundled (Play services module).
+    implementation "com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1"
+  }
+  if (visionText) {
+    // OCR is unbundled (one Play services module per script).
     implementation "com.google.android.gms:play-services-mlkit-text-recognition:19.0.1"
     implementation "com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1"
     implementation "com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1"
     implementation "com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1"
     implementation "com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1"
+  }
+  if (visionSegmentation || visionText) {
     // ModuleInstallClient, installs the Play services models in prepareVision().
     implementation "com.google.android.gms:play-services-base:18.10.0"
   }

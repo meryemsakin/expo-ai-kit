@@ -87,6 +87,7 @@ import {
   resolveLabelImageOptions,
   resolveRecognizeTextOptions,
   resolveRemoveBackgroundOptions,
+  enabledVisionFeatures,
   resolveVisionFeatures,
   unavailableVisionAvailability,
   validateVisionImage,
@@ -1773,7 +1774,12 @@ export async function prepareVision(options?: PrepareVisionOptions): Promise<voi
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     throw visionUnsupportedPlatformError('prepareVision');
   }
-  const features = resolveVisionFeatures(options?.features);
+  // An explicit list is strict: a feature the build does not include throws
+  // VISION_NOT_ENABLED. The default prepares only the compiled-in features.
+  const features =
+    options?.features === undefined
+      ? enabledVisionFeatures(await getVisionAvailability())
+      : resolveVisionFeatures(options.features);
   const languages = normalizeLanguageTags(options?.languages);
 
   let subscription: ReturnType<typeof ExpoAiKitModule.addListener> | undefined;

@@ -1,4 +1,5 @@
 import {
+  enabledVisionFeatures,
   ANDROID_TEXT_RECOGNITION_LANGUAGES,
   DEFAULT_LABEL_MAX_RESULTS,
   DEFAULT_LABEL_MIN_CONFIDENCE,
@@ -249,5 +250,30 @@ describe('vision availability normalization', () => {
       textRecognition: { status: 'unavailable', reason: 'platform' },
       faceDetection: { status: 'unavailable', reason: 'platform' },
     });
+  });
+});
+
+describe('enabledVisionFeatures', () => {
+  const available = { status: 'available' as const };
+  const notEnabled = { status: 'unavailable' as const, reason: 'not-enabled' as const };
+  it('keeps every feature the build compiled in, in preparation order', () => {
+    expect(
+      enabledVisionFeatures({
+        backgroundRemoval: { status: 'downloadable' },
+        imageLabeling: available,
+        textRecognition: { status: 'unavailable', reason: 'device' },
+        faceDetection: available,
+      })
+    ).toEqual(['background-removal', 'image-labeling', 'text-recognition', 'face-detection']);
+  });
+  it('drops features the build left out', () => {
+    expect(
+      enabledVisionFeatures({
+        backgroundRemoval: notEnabled,
+        imageLabeling: notEnabled,
+        textRecognition: notEnabled,
+        faceDetection: available,
+      })
+    ).toEqual(['face-detection']);
   });
 });

@@ -63,27 +63,53 @@ const DEFAULT_MIC_PERMISSION =
  *     string with `{ "speech": { "microphonePermission": "..." } }`.
  *   Without the flag, speech APIs throw a typed SPEECH_NOT_ENABLED error.
  *
- * - `vision` (boolean, default `false`): enable on-device vision on Android,
+ * - `vision` (boolean or array of feature names, default `false`): enable
+ *   on-device vision on Android. `true` compiles every feature:
  *   removeBackground() (ML Kit Subject Segmentation), labelImage() (ML Kit
- *   Image Labeling), detectFaces() (bundled Face Detection), and recognizeText() (ML Kit Text Recognition v2). Off by
- *   default because it adds the ML Kit clients and the bundled label model to
- *   the APK. On, prebuild writes a gradle property that compiles the library's
- *   vision source set and adds the ML Kit dependencies; the segmentation and
- *   OCR models are Google Play services modules downloaded once at runtime by
- *   prepareVision(). Without the flag, Android vision APIs throw a typed
- *   VISION_NOT_ENABLED error. iOS needs no configuration: the Vision framework
- *   ships with the OS (no permissions are added, the app reads image files it
+ *   Image Labeling, bundled model), detectFaces() (ML Kit Face Detection,
+ *   bundled model), and recognizeText() (ML Kit Text Recognition v2). An
+ *   array such as `["face-detection"]` compiles only those features, so an
+ *   app pays only for the ML Kit clients and bundled models it uses; the
+ *   valid names are "background-removal", "image-labeling",
+ *   "text-recognition", and "face-detection". Off by default. On, prebuild
+ *   writes the `expoAiKit.vision` gradle property (`true` or the
+ *   comma-separated list); the library's build.gradle adds one dependency
+ *   set and one source set per feature. The segmentation and OCR models are
+ *   Google Play services modules downloaded once at runtime by
+ *   prepareVision(). A feature that is not compiled in reports
+ *   `{ status: 'unavailable', reason: 'not-enabled' }` and its function throws
+ *   VISION_NOT_ENABLED. iOS needs no configuration: the Vision framework ships
+ *   with the OS (no permissions are added, the app reads image files it
  *   already has access to).
  *
  * Usage in app.json / app.config.js:
  *   "plugins": [["expo-ai-kit", { "llm": true, "speech": true, "vision": true, "androidEmbeddings": true }]]
+ *   "plugins": [["expo-ai-kit", { "vision": ["face-detection"] }]]
  */
+const VISION_FEATURES = ['background-removal', 'image-labeling', 'text-recognition', 'face-detection'];
+
+/** `true`, or the comma-separated feature list, or null when vision is off. */
+function resolveVisionProperty(value) {
+  if (value === true) return 'true';
+  if (!Array.isArray(value)) return null;
+  const unknown = value.filter((f) => !VISION_FEATURES.includes(f));
+  if (unknown.length > 0) {
+    throw new Error(
+      `expo-ai-kit: unknown vision feature(s) ${JSON.stringify(unknown)}; ` +
+        `valid names are ${VISION_FEATURES.map((f) => `"${f}"`).join(', ')}`
+    );
+  }
+  const features = VISION_FEATURES.filter((f) => value.includes(f));
+  if (features.length === 0) return null;
+  return features.length === VISION_FEATURES.length ? 'true' : features.join(',');
+}
+
 const withExpoAiKit = (config, props = {}) => {
   const llm = props.llm === true;
   const androidEmbeddings = props.androidEmbeddings === true;
   const speech =
     props.speech === true || (typeof props.speech === 'object' && props.speech !== null);
-  const vision = props.vision === true;
+  const vision = resolveVisionProperty(props.vision);
   const explicitMicPermission =
     typeof props.speech === 'object' && props.speech !== null
       ? props.speech.microphonePermission
@@ -140,9 +166,12 @@ const withExpoAiKit = (config, props = {}) => {
       c.modResults.push(
         {
           type: 'comment',
-          value: 'expo-ai-kit: compile the opt-in ML Kit vision backend',
+          value:
+            vision === 'true'
+              ? 'expo-ai-kit: compile the opt-in ML Kit vision backend (every feature)'
+              : `expo-ai-kit: compile the opt-in ML Kit vision backend (${vision})`,
         },
-        { type: 'property', key: VISION_PROP_KEY, value: 'true' }
+        { type: 'property', key: VISION_PROP_KEY, value: vision }
       );
     }
     return c;
@@ -176,3 +205,4 @@ const withExpoAiKit = (config, props = {}) => {
 };
 
 module.exports = createRunOncePlugin(withExpoAiKit, pkg.name, pkg.version);
+module.exports.resolveVisionProperty = resolveVisionProperty;

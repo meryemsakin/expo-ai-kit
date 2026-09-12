@@ -795,7 +795,7 @@ const { text } = await generateText({
       ["expo-ai-kit", {
         "llm": true,
         "speech": true,             // or { "microphonePermission": "…" }
-        "vision": true,
+        "vision": true,             // or ["face-detection", "text-recognition"]
         "androidEmbeddings": true
       }]
     ]
@@ -824,7 +824,7 @@ const { text } = await generateText({
           <tr>
             <td><code>vision</code></td>
             <td>Android <code>removeBackground</code>, <code>labelImage</code>, <code>recognizeText</code>, <code>detectFaces</code></td>
-            <td>ML Kit vision clients + bundled face and label models (no permissions). iOS needs no option.</td>
+            <td><code>true</code>: every ML Kit vision client plus the bundled face and label models (no permissions). An array of feature names (<code>background-removal</code>, <code>image-labeling</code>, <code>text-recognition</code>, <code>face-detection</code>) compiles only those; a face-only build adds about 14 MB less than <code>true</code>. Features left out report <code>not-enabled</code> and throw <code>VISION_NOT_ENABLED</code>. iOS needs no option.</td>
           </tr>
           <tr>
             <td><code>androidEmbeddings</code></td>

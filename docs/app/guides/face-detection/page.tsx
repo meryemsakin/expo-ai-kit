@@ -16,12 +16,13 @@ export default function FaceDetectionPage() {
     <h1>Detect faces</h1>
     <p>Find every face in a photo and get its box. The library only detects; what counts as a good photo is your decision, and the recipes below show the common ones.</p>
     <h2 id="setup">Setup</h2>
-    <p>Follow <Link href="/get-started">installation</Link>. On Android, enable vision and rebuild:</p>
+    <p>Follow <Link href="/get-started">installation</Link>. On Android, enable face detection and rebuild. Naming just this feature keeps the other vision clients and models out of your app:</p>
     <CodeBlock language="json" filename="app.json">{`{
   "expo": {
-    "plugins": [["expo-ai-kit", { "vision": true }]]
+    "plugins": [["expo-ai-kit", { "vision": ["face-detection"] }]]
   }
 }`}</CodeBlock>
+    <p>Use <code>{`"vision": true`}</code> instead if you also want background removal, labels, or OCR.</p>
     <p>iOS uses Apple Vision on a physical device; Simulator is not supported. Android uses bundled ML Kit Face Detection. No model download, preparation, or permission is required, and the <code>llm</code> option is not needed.</p>
     <h2 id="detect">Detect faces</h2>
     <CodeBlock language="typescript">{`import { detectFaces } from 'expo-ai-kit';

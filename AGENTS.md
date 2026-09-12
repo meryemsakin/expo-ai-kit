@@ -73,10 +73,16 @@ a side effect of unrelated work.
   the generation guard. Native layers forward raw engine updates (with an `error` event channel); the
   JS layer assembles transcripts. Android's engine ingests non-mic audio at real-time rate by
   contract and requires `RECORD_AUDIO` even for file input.
-- **Vision is opt-in on Android and independent.** The config plugin's `vision` flag compiles the
-  Android ML Kit vision backend (reflection-resolved, like embeddings and speech) and adds no
-  permissions; without it, Android vision APIs throw `VISION_NOT_ENABLED` and availability reports
-  `not-enabled`. iOS always compiles the Vision client. `prepareVision()` is the only vision call
+- **Vision is opt-in on Android, per feature, and independent.** The config plugin's `vision`
+  option (`true` or an array of `background-removal`, `image-labeling`, `text-recognition`,
+  `face-detection`) writes `expoAiKit.vision` as `true` or a comma-separated list; `build.gradle`
+  compiles `android/src/vision/` (shared support, reflection-resolved like embeddings and speech)
+  plus one `android/src/vision-<feature>/` source set and one dependency set per named feature
+  (`vision-play/` holds the Play services module installer shared by segmentation and OCR). The
+  coordinator resolves each feature client by reflection; a feature left out reports
+  `not-enabled`, its function throws `VISION_NOT_ENABLED`, and `prepareVision()` without an
+  explicit list prepares only compiled-in features. Shared vision code must not reference any
+  ML Kit class. No permissions are added. iOS always compiles the Vision client. `prepareVision()` is the only vision call
   that downloads (Google Play services models); `removeBackground`/`recognizeText` throw
   `MODEL_NOT_DOWNLOADED` instead of downloading. Vision never holds the generation or speech
   guards. Cutouts are written to the app cache and returned as `file://` URIs, pixel buffers do
@@ -111,7 +117,8 @@ preference is not a ban on a well-designed stateful-session primitive.
   and the conditionally compiled `android/src/llm/` (`AndroidLlmBackend` behind the `LlmBackend`
   interface); speech lives in
   `ios/SpeechRecognitionClient.swift` and the conditionally compiled `android/src/speech/`; vision in
-  `ios/VisionClient.swift` and the conditionally compiled `android/src/vision/`.
+  `ios/VisionClient.swift` and the conditionally compiled `android/src/vision/` plus the per-feature
+  `android/src/vision-{face,labeling,segmentation,text,play}/` source sets.
 - `docs/`, the Next.js documentation site (`docs/lib/navigation.ts` is the sidebar and search
   index, grouped by capability). `docs/public/llms.txt` is the agent-facing summary.
 - `example/`, tracked development and CI fixture, not part of the published package.
@@ -130,7 +137,7 @@ preference is not a ban on a well-designed stateful-session primitive.
 
 Keep exactly one roadmap item active. Do not start or add a later item while it is active.
 
-- **Next:** Ship face detection as the general `detectFaces` primitive (no policy API) with every capability opt-in, and land Aura's migration PR on top of it.
+- **Next:** Make the `vision` option per-feature so a face-detection-only app ships only the face detector, then land Aura's migration PR on top of it.
 
 When the item is complete, clear the `Next` value, report completion, and ask the maintainer for exactly
 one next item. Do not retain completed items or release history in this section.

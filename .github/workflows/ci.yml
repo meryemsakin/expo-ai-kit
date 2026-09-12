@@ -127,8 +127,10 @@ jobs:
       matrix:
         # `all`: every opt-in native backend the example enables. `none`: the
         # default build a new app gets with no plugin options, which must
-        # compile too and must not pull in the LiteRT-LM runtime.
-        features: [all, none]
+        # compile too and must not pull in the LiteRT-LM runtime. `face`: only
+        # `vision: ["face-detection"]`, which must compile without the other
+        # ML Kit vision clients.
+        features: [all, none, face]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -149,6 +151,10 @@ jobs:
         if: matrix.features == 'none'
         working-directory: example
         run: node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('app.json','utf8'));j.expo.plugins=j.expo.plugins.map(p=>Array.isArray(p)&&p[0]==='expo-ai-kit'?'expo-ai-kit':p);fs.writeFileSync('app.json',JSON.stringify(j,null,2)+'\n')"
+      - name: Keep only vision face-detection (face-only build)
+        if: matrix.features == 'face'
+        working-directory: example
+        run: node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('app.json','utf8'));j.expo.plugins=j.expo.plugins.map(p=>Array.isArray(p)&&p[0]==='expo-ai-kit'?['expo-ai-kit',{vision:['face-detection']}]:p);fs.writeFileSync('app.json',JSON.stringify(j,null,2)+'\n')"
       - name: Prebuild android
         working-directory: example
         run: npx expo prebuild --platform android --no-install
@@ -159,11 +165,11 @@ jobs:
         working-directory: example/android
         run: |
           ./gradlew :app:dependencies --configuration debugRuntimeClasspath --no-daemon -q > deps.txt
-          if [ "${{ matrix.features }}" = "none" ]; then
-            ! grep -q "litertlm" deps.txt
-          else
-            grep -q "litertlm" deps.txt
-          fi
+          case "${{ matrix.features }}" in
+            none) ! grep -q "litertlm" deps.txt && ! grep -q "mlkit" deps.txt ;;
+            face) ! grep -q "litertlm" deps.txt && grep -q "face-detection" deps.txt && ! grep -q "image-labeling" deps.txt && ! grep -q "subject-segmentation" deps.txt && ! grep -q "mlkit-text-recognition" deps.txt ;;
+            *) grep -q "litertlm" deps.txt ;;
+          esac
 
   # Tier 3 — iOS native. THE tier that catches Swift errors like PR #8's.
   # Free on public repos as long as it's the standard `macos-*` runner (not
