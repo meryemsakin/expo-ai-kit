@@ -276,14 +276,16 @@ function VisionSection() {
   const doFaces = () =>
     run('detecting faces', async () => {
       if (!imageUri) return;
+      const startedAt = Date.now();
       const result = await detectFaces({ uri: imageUri });
+      const elapsed = Date.now() - startedAt;
       const lines = result.faces.map(
         (f, i) =>
           `#${i + 1} ${(f.bounds.width * 100).toFixed(0)}% wide at (${f.pixelBounds.x}, ${f.pixelBounds.y}) ` +
           `${f.pixelBounds.width}×${f.pixelBounds.height}px`
       );
       setFaceResult(
-        `${result.faces.length} face(s) in ${result.width}×${result.height}\n${lines.join('\n')}`
+        `${result.faces.length} face(s) in ${result.width}×${result.height} · ${elapsed} ms\n${lines.join('\n')}`
       );
     });
 

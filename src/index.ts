@@ -1711,9 +1711,10 @@ export function streamTranscription(
 const VISION_MODEL_IDS = new Set(['apple-vision', 'mlkit-vision']);
 
 /**
- * Find every face in a local image. Runs at full resolution on the upright
- * image (EXIF orientation applied) and returns each face box normalized (0–1)
- * and in pixels, largest first, plus the image size. Decision rules such as
+ * Find every face in a local image. Works on the upright image (EXIF
+ * orientation applied; Android detects on a downscaled decode and maps boxes
+ * back) and returns each face box normalized (0–1) and in full-resolution
+ * pixels, largest first, plus the image size. Decision rules such as
  * "exactly one face" or "big enough" belong to the caller.
  *
  * Needs no preparation or model download: iOS uses Apple Vision on a physical

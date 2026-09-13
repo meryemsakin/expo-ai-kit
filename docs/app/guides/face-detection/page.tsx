@@ -32,7 +32,7 @@ console.log(\`\${faces.length} face(s) in a \${width}×\${height} image\`);
 for (const face of faces) {
   console.log(face.bounds, face.pixelBounds);
 }`}</CodeBlock>
-    <p>Pass a local <code>file://</code> URI or absolute path. Android also accepts <code>content://</code> URIs. Remote URLs are rejected. Detection runs at full resolution on the upright image (EXIF orientation applied), and calls may run concurrently.</p>
+    <p>Pass a local <code>file://</code> URI or absolute path. Android also accepts <code>content://</code> URIs. Remote URLs are rejected. Detection runs on the upright image (EXIF orientation applied); Android decodes a downscaled copy for speed and memory and reports boxes in full-resolution pixels. Calls may run concurrently.</p>
     <h2 id="result">The result</h2>
     <CodeBlock language="typescript">{`type FaceDetectionResult = {
   width: number;          // upright image size in pixels
