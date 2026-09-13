@@ -137,7 +137,7 @@ preference is not a ban on a well-designed stateful-session primitive.
 
 Keep exactly one roadmap item active. Do not start or add a later item while it is active.
 
-- **Next:** Make the `vision` option per-feature so a face-detection-only app ships only the face detector, then land Aura's migration PR on top of it.
+- **Next:** (none; ask the maintainer for exactly one item)
 
 When the item is complete, clear the `Next` value, report completion, and ask the maintainer for exactly
 one next item. Do not retain completed items or release history in this section.
