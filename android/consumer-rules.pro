@@ -18,10 +18,23 @@
     <init>(android.content.Context);
 }
 
-# The optional ML Kit vision backend (vision config-plugin flag) is
-# instantiated by reflection from ExpoAiKitModule, keep its constructor.
+# The optional ML Kit vision backend (vision config-plugin option) is
+# instantiated by reflection from ExpoAiKitModule, and it instantiates each
+# compiled-in feature client the same way; keep their constructors.
 -keep class expo.modules.aikit.vision.MlKitVisionBackend {
     <init>(android.content.Context);
+}
+-keep class expo.modules.aikit.vision.FaceDetectionClient {
+    <init>(expo.modules.aikit.vision.VisionSupport);
+}
+-keep class expo.modules.aikit.vision.ImageLabelingClient {
+    <init>(expo.modules.aikit.vision.VisionSupport);
+}
+-keep class expo.modules.aikit.vision.SubjectSegmentationClient {
+    <init>(expo.modules.aikit.vision.VisionSupport);
+}
+-keep class expo.modules.aikit.vision.TextRecognitionClient {
+    <init>(expo.modules.aikit.vision.VisionSupport);
 }
 
 # MediaPipe tasks-text ships no consumer rules; its JNI layer resolves Java

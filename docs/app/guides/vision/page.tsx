@@ -49,9 +49,28 @@ export default function VisionPage() {
 }`}
       </CodeBlock>
       <p>
+        To ship only what you use, name the features instead of <code>true</code>.
+        Each one adds just its own ML Kit client and, for labeling and faces,
+        its bundled model:
+      </p>
+      <CodeBlock language="json" filename="app.json">
+        {`{
+  "expo": {
+    "plugins": [["expo-ai-kit", { "vision": ["face-detection", "text-recognition"] }]]
+  }
+}`}
+      </CodeBlock>
+      <p>
+        The names are <code>background-removal</code>, <code>image-labeling</code>,{" "}
+        <code>text-recognition</code>, and <code>face-detection</code>. A feature you
+        leave out reports <code>{`{ status: 'unavailable', reason: 'not-enabled' }`}</code>{" "}
+        and its function throws <code>VISION_NOT_ENABLED</code>; <code>prepareVision()</code>{" "}
+        with no <code>features</code> prepares only the compiled-in ones.
+      </p>
+      <p>
         No permissions are added: your app reads image files it already has
         access to (for example from <code>expo-image-picker</code> or the
-        camera). Without the flag, Android vision APIs throw a typed{" "}
+        camera). Without the option, Android vision APIs throw a typed{" "}
         <code>VISION_NOT_ENABLED</code> error and the app pays zero size cost.
       </p>
 

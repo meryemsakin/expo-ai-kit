@@ -1,6 +1,5 @@
 package expo.modules.aikit.vision
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -23,11 +22,14 @@ import kotlinx.coroutines.withContext
  * the image size and raw face boxes in upright pixels; the JS layer normalizes
  * and sorts. Each call owns its detector and bitmap, so calls may overlap.
  */
-internal class FaceDetectionClient(private val context: Context) {
+class FaceDetectionClient(support: VisionSupport) : VisionFeatureClient(support), FaceFeature {
   private fun failure(code: String, cause: Exception) =
-    RuntimeException("$code:mlkit-vision:${cause.message ?: "Face detection failed"}", cause)
+    RuntimeException("$code:${VisionSupport.MODEL_ID}:${cause.message ?: "Face detection failed"}", cause)
 
-  suspend fun detectFaces(imageUri: String): Map<String, Any?> = withContext(Dispatchers.IO) {
+  // The face models are bundled, no Play services module involved.
+  override suspend fun availability(): Map<String, Any?> = mapOf("status" to "available")
+
+  override suspend fun detectFaces(imageUri: String): Map<String, Any?> = withContext(Dispatchers.IO) {
     val bitmap = try { loadImage(imageUri) } catch (e: Exception) {
       throw failure("IMAGE_DECODE_FAILED", e)
     }

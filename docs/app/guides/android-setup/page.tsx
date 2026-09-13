@@ -9,16 +9,22 @@ export default function AndroidSetupPage() {
     <h1>Android setup</h1>
     <p>Follow <Link href="/get-started">Get Started</Link> to install and build. All features are off by default: the library compiles only the options you turn on. It follows your app&apos;s <code>minSdkVersion</code> (Expo&apos;s floor is 24); the <code>llm</code> and <code>speech</code> options raise it to 26.</p>
     <h2 id="configuration">Build options</h2>
-    <p>Enable only what your app uses. For example, to add image operations and face detection:</p>
+    <p>Enable only what your app uses. For example, to add every image operation:</p>
     <CodeBlock language="json" filename="app.json">{`{
   "expo": {
     "plugins": [["expo-ai-kit", { "vision": true }]]
   }
 }`}</CodeBlock>
+    <p>Or only face detection, which leaves the other ML Kit clients and models out of the build:</p>
+    <CodeBlock language="json" filename="app.json">{`{
+  "expo": {
+    "plugins": [["expo-ai-kit", { "vision": ["face-detection"] }]]
+  }
+}`}</CodeBlock>
     <table><thead><tr><th>Option</th><th>What it adds</th></tr></thead><tbody>
       <tr><td><code>llm</code></td><td>Text generation and downloadable models: the ML Kit Prompt API client and the LiteRT-LM runtime (about 21 MB of arm64 code); <code>minSdkVersion</code> 26</td></tr>
       <tr><td><code>speech</code></td><td>Speech recognition and microphone permission, including for file transcription</td></tr>
-      <tr><td><code>vision</code></td><td>Image operations, bundled label and face models; no permissions</td></tr>
+      <tr><td><code>vision</code></td><td><code>true</code> for every image operation, or an array of <code>background-removal</code>, <code>image-labeling</code>, <code>text-recognition</code>, <code>face-detection</code>; each adds only its client and bundled model; no permissions</td></tr>
       <tr><td><code>androidEmbeddings</code></td><td>EmbeddingGemma runtime; model downloaded separately</td></tr>
     </tbody></table>
     <p>Every option change requires a new native build. An OTA update cannot add native modules or models bundled with the app.</p>
@@ -26,8 +32,10 @@ export default function AndroidSetupPage() {
     <p>Without Expo prebuild, set the relevant properties directly in <code>android/gradle.properties</code>:</p>
     <CodeBlock language="properties">{`# Enable text generation:
 expoAiKit.llm=true
-# Enable image operations and face detection:
-expoAiKit.vision=true`}</CodeBlock>
+# Enable every image operation:
+expoAiKit.vision=true
+# Or only some (comma-separated feature names):
+expoAiKit.vision=face-detection,text-recognition`}</CodeBlock>
     <p>The other properties are <code>expoAiKit.speech</code> and <code>expoAiKit.androidEmbeddings</code>. Speech also needs <code>android.permission.RECORD_AUDIO</code> in your manifest. The <code>llm</code> and <code>speech</code> options need <code>minSdkVersion</code> 26. iOS reads <code>expoAiKit.llm</code> from <code>ios/Podfile.properties.json</code>; see the <Link href="/api#config-plugin">config reference</Link>.</p>
     <h2 id="models">Model preparation</h2>
     <p>Await <code>prepareBuiltInModel()</code> for built-in text. Vision background removal and OCR need <code>prepareVision()</code> and Google Play services. Image labels and face detection work immediately after the native build.</p>

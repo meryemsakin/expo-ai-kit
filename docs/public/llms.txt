@@ -42,8 +42,12 @@ Speech has its own single-flight guard (SPEECH_BUSY).
 - [Images](https://expo-ai-kit.dev/guides/vision): removeBackground, labelImage, recognizeText.
 - [Face detection](https://expo-ai-kit.dev/guides/face-detection): detectFaces({ uri }).
 
-Enable vision on Android and rebuild. No new permissions. iOS needs no plugin option.
-Vision does not need the llm option; a face-detection-only app ships no text runtime.
+Enable vision on Android and rebuild: `"vision": true` for every feature, or an array of
+background-removal, image-labeling, text-recognition, face-detection to compile only those (each
+adds only its ML Kit client and bundled model). No new permissions. iOS needs no plugin option.
+Vision does not need the llm option; a face-detection-only app ships only the face detector.
+Features left out report { status: 'unavailable', reason: 'not-enabled' } and throw
+VISION_NOT_ENABLED; prepareVision() with no features prepares only the compiled-in ones.
 getVisionAvailability reports backgroundRemoval, imageLabeling, textRecognition, and faceDetection.
 prepareVision is the only call that downloads: Android segmentation and OCR use Play services
 models. Image labeling and face detection are bundled and work without preparation.
