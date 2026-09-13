@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.18.1
+
+### Changed
+
+- Android `detectFaces()` is several times faster and uses far less memory. The detector is
+  created once per process instead of once per call, calls are serialized so overlapping
+  requests do not stack decoded bitmaps, and the image is decoded at no more than 1600 px on
+  the long edge (ML Kit's minimum face size is relative to the frame, so the same faces are
+  found). Boxes are still reported in full-resolution upright pixels; results and the API are
+  unchanged.
+
 ## 0.18.0
 
 ### Added

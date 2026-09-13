@@ -433,7 +433,7 @@ type DetectedFace = {
   pixelBounds: PixelRect;   // the same box in upright image pixels
   confidence?: number;      // 0–1, Apple Vision only
 };`}</CodeBlock>
-      <p>Runs at full resolution; calls may run concurrently. Failures use IMAGE_DECODE_FAILED, VISION_FAILED, VISION_NOT_ENABLED, or DEVICE_NOT_SUPPORTED (iOS Simulator).</p>
+      <p>Boxes are reported in full-resolution pixels (Android detects on a downscaled decode); calls may run concurrently. Failures use IMAGE_DECODE_FAILED, VISION_FAILED, VISION_NOT_ENABLED, or DEVICE_NOT_SUPPORTED (iOS Simulator).</p>
 
       <h3 id="vision-lifecycle">Vision lifecycle</h3>
       <p>
