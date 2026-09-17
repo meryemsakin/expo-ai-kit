@@ -118,7 +118,9 @@ const { text } = await sendMessage([
         For a ChatGPT-style experience, stream tokens as they are produced. The
         handle&apos;s <code>promise</code> resolves with the final text and{" "}
         <code>stop()</code> ends the generation early with what was produced so
-        far.
+        far. A generation started right after <code>stop()</code> may briefly
+        reject with <code>INFERENCE_BUSY</code> while the model finishes
+        stopping.
       </p>
       <CodeBlock language="typescript">
         {`import { streamMessage } from 'expo-ai-kit';

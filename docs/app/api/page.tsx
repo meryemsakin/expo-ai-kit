@@ -169,7 +169,9 @@ const { text } = await sendMessage(
       <p>
         Stream a response token-by-token. Returns a handle with a{" "}
         <code>promise</code> that resolves with the final text and a{" "}
-        <code>stop()</code> to cancel.
+        <code>stop()</code> to cancel. A generation started right after{" "}
+        <code>stop()</code> rejects with <code>INFERENCE_BUSY</code> until the
+        model has actually stopped.
       </p>
       <CodeBlock language="typescript">
         {`function streamMessage(
