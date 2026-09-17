@@ -209,6 +209,89 @@ describe('streamMessage', () => {
     expect(streamSubscriptions[0].removed).toBe(true);
   });
 
+  it('stop() keeps the single-flight guard until native emits its terminal event', async () => {
+    const { promise, stop } = streamMessage(messages, jest.fn());
+    const sessionId = streamSessionId();
+
+    stop();
+    await expect(promise).resolves.toEqual({ text: '' });
+
+    // Native may still be decoding: a new generation must not start yet.
+    const busy = await sendMessage(messages).catch((e) => e);
+    expect(busy).toBeInstanceOf(ModelError);
+    expect(busy.code).toBe('INFERENCE_BUSY');
+    expect(native.sendMessage).not.toHaveBeenCalled();
+    expect(streamSubscriptions[0].removed).toBe(false);
+
+    emitStream({ sessionId, token: '', accumulatedText: '', isDone: true });
+    expect(streamSubscriptions[0].removed).toBe(true);
+
+    native.sendMessage.mockResolvedValueOnce({ text: 'after stop' });
+    await expect(sendMessage(messages)).resolves.toEqual({ text: 'after stop' });
+  });
+
+  it('releases the guard when native reports an error while stopping', async () => {
+    const { promise, stop } = streamMessage(messages, jest.fn());
+    const sessionId = streamSessionId();
+
+    stop();
+    await expect(promise).resolves.toEqual({ text: '' });
+    emitStream({
+      sessionId,
+      token: '',
+      accumulatedText: '',
+      isDone: true,
+      error: 'INFERENCE_FAILED:gemma-e2b:cancelled mid-decode',
+    });
+
+    native.sendMessage.mockResolvedValueOnce({ text: 'ok' });
+    await expect(sendMessage(messages)).resolves.toEqual({ text: 'ok' });
+  });
+
+  it('rejects with the error thrown by onToken and stops native generation', async () => {
+    const callbackError = new Error('render failed');
+    const onToken = jest.fn(() => {
+      throw callbackError;
+    });
+    const { promise } = streamMessage(messages, onToken);
+    const sessionId = streamSessionId();
+
+    emitStream({ sessionId, token: 'a', accumulatedText: 'a', isDone: false });
+    await expect(promise).rejects.toBe(callbackError);
+    expect(native.stopStreaming).toHaveBeenCalledWith(sessionId);
+
+    // Later tokens never reach the failed callback; the terminal event frees the guard.
+    emitStream({ sessionId, token: 'b', accumulatedText: 'ab', isDone: false });
+    emitStream({ sessionId, token: '', accumulatedText: 'ab', isDone: true });
+    expect(onToken).toHaveBeenCalledTimes(1);
+
+    native.sendMessage.mockResolvedValueOnce({ text: 'ok' });
+    await expect(sendMessage(messages)).resolves.toEqual({ text: 'ok' });
+  });
+
+  it('does not leave the guard held when onToken throws on the terminal event', async () => {
+    const callbackError = new Error('render failed');
+    const { promise } = streamMessage(messages, () => {
+      throw callbackError;
+    });
+
+    emitStream({ sessionId: streamSessionId(), token: '', accumulatedText: 'x', isDone: true });
+    await expect(promise).rejects.toBe(callbackError);
+    expect(native.stopStreaming).not.toHaveBeenCalled();
+
+    native.sendMessage.mockResolvedValueOnce({ text: 'not stuck' });
+    await expect(sendMessage(messages)).resolves.toEqual({ text: 'not stuck' });
+  });
+
+  it('releases the guard when startStreaming rejects', async () => {
+    native.startStreaming.mockRejectedValueOnce(new Error('LLM_NOT_ENABLED::llm option is off'));
+    const { promise } = streamMessage(messages, jest.fn());
+    await expect(promise).rejects.toBeInstanceOf(ModelError);
+
+    native.sendMessage.mockResolvedValueOnce({ text: 'ok' });
+    await expect(sendMessage(messages)).resolves.toEqual({ text: 'ok' });
+  });
+
   it('removes the token subscription once settled', async () => {
     const { promise } = streamMessage(messages, jest.fn());
     emitStream({

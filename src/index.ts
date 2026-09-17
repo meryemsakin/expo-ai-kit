@@ -148,8 +148,9 @@ async function wrapNative<T>(run: () => Promise<T>): Promise<T> {
 // safe for concurrent decodes (interleaving can corrupt the cache and crash the
 // native side). JS is single-threaded, so a synchronous check-and-set of this
 // flag before any `await` is race-free. The flag is shared by sendMessage and
-// streamMessage and is held until the *native* call settles, not until an
-// early abort, so a detached-but-still-running generation still blocks a new one.
+// streamMessage and is held until the *native* call settles (for a stream, its
+// terminal onStreamToken event), not until an early abort or stop(), so a
+// detached-but-still-running generation still blocks a new one.
 let inferenceInFlight = false;
 
 function acquireInference(): void {
@@ -447,17 +448,28 @@ export function streamMessage(
 
   let finalText = '';
   let settled = false;
+  let nativeDone = false;
   let subscription: ReturnType<typeof ExpoAiKitModule.addListener> | undefined;
   let resolveOuter!: (r: LLMResponse) => void;
   let rejectOuter!: (e: unknown) => void;
 
-  // Settle exactly once: remove the listener and release the single-flight flag.
+  // Settle the caller's promise exactly once. stop() and a throwing onToken
+  // settle it before native has finished decoding, so this does NOT release the
+  // single-flight flag, finishNative() does.
   const settle = (action: () => void) => {
     if (settled) return;
     settled = true;
+    action();
+  };
+
+  // Native generation ended (terminal event, or startStreaming rejected): remove
+  // the listener and release the flag. Both natives emit a terminal isDone on
+  // cancellation, so a stopped stream still reaches this.
+  const finishNative = () => {
+    if (nativeDone) return;
+    nativeDone = true;
     subscription?.remove();
     inferenceInFlight = false;
-    action();
   };
 
   const promise = new Promise<LLMResponse>((resolve, reject) => {
@@ -471,6 +483,7 @@ export function streamMessage(
     // surfacing error text as a successful completion. Error events never
     // reach the caller's onToken.
     if (event.error) {
+      finishNative();
       const nativeError = new Error(event.error);
       settle(() => {
         try {
@@ -481,12 +494,23 @@ export function streamMessage(
       });
       return;
     }
+    if (event.isDone) finishNative();
+    // Already settled by stop() or a throwing onToken: only waiting for native to end.
+    if (settled) return;
     finalText = event.accumulatedText;
-    onToken(event);
+    try {
+      onToken(event);
+    } catch (e) {
+      // The caller's callback failed: stop generating and surface its error.
+      if (!event.isDone) ExpoAiKitModule.stopStreaming(sessionId).catch(() => {});
+      settle(() => rejectOuter(e));
+      return;
+    }
     if (event.isDone) settle(() => resolveOuter({ text: finalText }));
   });
 
   ExpoAiKitModule.startStreaming(messages, systemPrompt, sessionId).catch((error) => {
+    finishNative();
     settle(() => {
       try {
         toModelError(error);
@@ -497,9 +521,9 @@ export function streamMessage(
   });
 
   const stop = () => {
-    // Best-effort native cancel (native also emits a terminal isDone on cancel),
-    // but resolve immediately with the text so far so `promise` can never hang.
-    ExpoAiKitModule.stopStreaming(sessionId).catch(() => {});
+    // Best-effort native cancel, but resolve immediately with the text so far so
+    // `promise` can never hang. The flag stays held until native's terminal event.
+    if (!nativeDone) ExpoAiKitModule.stopStreaming(sessionId).catch(() => {});
     settle(() => resolveOuter({ text: finalText }));
   };
 
