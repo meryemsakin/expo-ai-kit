@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `streamMessage().stop()` released the single-flight generation guard before the native model
+  stopped, so a generation started right after `stop()` could overlap one still decoding. The guard
+  is now held until native reports the stream ended, as `sendMessage` already did; `promise` still
+  resolves immediately. The AI SDK provider's abort path is covered too.
+- Stopping a stream on a downloadable (LiteRT-LM) model ended the stream before the model stopped
+  decoding, so the next generation could start while it was still running. LiteRT-LM was never told
+  to stop: Android did not call `cancelProcess()`, and the next call closed its conversation under
+  it; on iOS cancelling the Swift task ended the stream loop before LiteRT-LM's cancel could run, so
+  decoding continued to the end. Both platforms now cancel LiteRT-LM natively and end the stream once
+  it confirms it stopped (Android waits at most 10 seconds).
+- A stream whose `onToken` callback threw on its final event never released the guard, so every
+  later generation failed with `INFERENCE_BUSY`. A throwing `onToken` now stops generation and
+  rejects `promise` with that error.
+
 ## 0.18.1
 
 ### Changed

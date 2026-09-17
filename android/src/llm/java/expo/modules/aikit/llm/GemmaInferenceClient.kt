@@ -14,14 +14,18 @@ import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.SamplerConfig
 import expo.modules.aikit.DownloadUtil
 import expo.modules.aikit.LlmModelFiles
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Wrapper around LiteRT-LM Engine for Gemma 4 models.
@@ -237,6 +241,66 @@ class GemmaInferenceClient(private val context: Context) {
   }
 
   /**
+   * Run one async inference on [conv] and suspend until LiteRT-LM has actually
+   * finished it. Must be called with the mutex held.
+   *
+   * On cancellation (stopStreaming cancels the stream job), this asks LiteRT-LM
+   * to stop with cancelProcess() and keeps waiting for its terminal callback
+   * (a kCancelled status arrives as onError) before rethrowing. Returning as
+   * soon as the coroutine is cancelled would release the mutex and, through the
+   * stream's terminal event, the JS single-flight guard while the old decode is
+   * still running; the next call's freshConversation() would then close that
+   * conversation under it.
+   */
+  private suspend fun runInference(
+    conv: Conversation,
+    prompt: String,
+    onText: (String) -> Unit
+  ) {
+    val finished = CompletableDeferred<Unit>()
+    val stopping = AtomicBoolean(false)
+    var started = false
+    try {
+      withContext(Dispatchers.IO) {
+        conv.sendMessageAsync(
+          Contents.of(prompt),
+          object : MessageCallback {
+            override fun onMessage(message: Message) {
+              if (!stopping.get()) onText(message.toString())
+            }
+            override fun onDone() {
+              finished.complete(Unit)
+            }
+            override fun onError(throwable: Throwable) {
+              finished.completeExceptionally(throwable)
+            }
+          },
+          emptyMap()
+        )
+        started = true
+        finished.await()
+      }
+    } catch (e: CancellationException) {
+      // Also thrown for a native kCancelled we did not request; only drain
+      // when this coroutine itself was cancelled after native started.
+      if (started && !currentCoroutineContext().isActive) {
+        stopping.set(true)
+        withContext(NonCancellable) {
+          runCatching { conv.cancelProcess() }
+          val drained = withTimeoutOrNull(CANCEL_DRAIN_TIMEOUT_MS) { finished.join() }
+          if (drained == null) {
+            android.util.Log.w(
+              "ExpoAiKit",
+              "LiteRT-LM did not stop within ${CANCEL_DRAIN_TIMEOUT_MS}ms of cancelProcess()"
+            )
+          }
+        }
+      }
+      throw e
+    }
+  }
+
+  /**
    * Generate a complete response. Blocks until done.
    * The mutex ensures this cannot run concurrently with load/unload.
    */
@@ -246,38 +310,22 @@ class GemmaInferenceClient(private val context: Context) {
     val fullPrompt = buildFullPrompt(prompt, systemPrompt)
 
     try {
-      withContext(Dispatchers.IO) {
-        suspendCancellableCoroutine<String> { continuation ->
-          val result = StringBuilder()
-          var previousText = ""
-          conv.sendMessageAsync(
-            Contents.of(fullPrompt),
-            object : MessageCallback {
-              override fun onMessage(message: Message) {
-                // LiteRT-LM may deliver accumulated text or delta tokens
-                // (observed: deltas on-device), detect which, exactly like
-                // generateTextStream, so the final text isn't just the last chunk.
-                val messageText = message.toString()
-                if (messageText.startsWith(previousText) && messageText.length >= previousText.length) {
-                  result.clear()
-                  result.append(messageText)
-                } else {
-                  result.append(messageText)
-                }
-                previousText = result.toString()
-              }
-              override fun onDone() {
-                continuation.resume(result.toString())
-              }
-              override fun onError(throwable: Throwable) {
-                continuation.resumeWithException(throwable)
-              }
-            },
-            emptyMap()
-          )
+      val result = StringBuilder()
+      var previousText = ""
+      runInference(conv, fullPrompt) { messageText ->
+        // LiteRT-LM may deliver accumulated text or delta tokens
+        // (observed: deltas on-device), detect which, exactly like
+        // generateTextStream, so the final text isn't just the last chunk.
+        if (messageText.startsWith(previousText) && messageText.length >= previousText.length) {
+          result.clear()
+          result.append(messageText)
+        } else {
+          result.append(messageText)
         }
+        previousText = result.toString()
       }
-    } catch (e: kotlinx.coroutines.CancellationException) {
+      result.toString()
+    } catch (e: CancellationException) {
       // Cooperative cancellation, propagate, don't mask as an inference failure.
       throw e
     } catch (e: OutOfMemoryError) {
@@ -305,50 +353,31 @@ class GemmaInferenceClient(private val context: Context) {
     val fullPrompt = buildFullPrompt(prompt, systemPrompt)
 
     try {
-      withContext(Dispatchers.IO) {
-        suspendCancellableCoroutine<Unit> { continuation ->
-          val accumulatedBuilder = StringBuilder()
-          var previousText = ""
-          conv.sendMessageAsync(
-            Contents.of(fullPrompt),
-            object : MessageCallback {
-              override fun onMessage(message: Message) {
-                val messageText = message.toString()
-
-                // LiteRT-LM may deliver accumulated text or delta tokens depending
-                // on the version. Detect which by checking if messageText extends
-                // what we've seen before.
-                val token: String
-                if (messageText.startsWith(previousText) && messageText.length >= previousText.length) {
-                  // Accumulated text, extract delta
-                  token = messageText.substring(previousText.length)
-                  previousText = messageText
-                  accumulatedBuilder.clear()
-                  accumulatedBuilder.append(messageText)
-                } else {
-                  // Delta token, accumulate ourselves
-                  token = messageText
-                  accumulatedBuilder.append(messageText)
-                  previousText = accumulatedBuilder.toString()
-                }
-
-                val accumulated = accumulatedBuilder.toString()
-                onChunk(token, accumulated, false)
-              }
-              override fun onDone() {
-                val finalText = accumulatedBuilder.toString()
-                onChunk("", finalText, true)
-                continuation.resume(Unit)
-              }
-              override fun onError(throwable: Throwable) {
-                continuation.resumeWithException(throwable)
-              }
-            },
-            emptyMap()
-          )
+      val accumulatedBuilder = StringBuilder()
+      var previousText = ""
+      runInference(conv, fullPrompt) { messageText ->
+        // LiteRT-LM may deliver accumulated text or delta tokens depending
+        // on the version. Detect which by checking if messageText extends
+        // what we've seen before.
+        val token: String
+        if (messageText.startsWith(previousText) && messageText.length >= previousText.length) {
+          // Accumulated text, extract delta
+          token = messageText.substring(previousText.length)
+          previousText = messageText
+          accumulatedBuilder.clear()
+          accumulatedBuilder.append(messageText)
+        } else {
+          // Delta token, accumulate ourselves
+          token = messageText
+          accumulatedBuilder.append(messageText)
+          previousText = accumulatedBuilder.toString()
         }
+
+        val accumulated = accumulatedBuilder.toString()
+        onChunk(token, accumulated, false)
       }
-    } catch (e: kotlinx.coroutines.CancellationException) {
+      onChunk("", accumulatedBuilder.toString(), true)
+    } catch (e: CancellationException) {
       // Cooperative cancellation, propagate, don't mask as an inference failure.
       throw e
     } catch (e: OutOfMemoryError) {
@@ -450,5 +479,12 @@ class GemmaInferenceClient(private val context: Context) {
     } else {
       prompt
     }
+  }
+
+  private companion object {
+    // Upper bound on waiting for LiteRT-LM to acknowledge cancelProcess().
+    // Decoding stops within a token, but a long prefill can run to completion
+    // first. Past this bound the inference is abandoned as before.
+    const val CANCEL_DRAIN_TIMEOUT_MS = 10_000L
   }
 }

@@ -450,9 +450,12 @@ public class ExpoAiKitModule: Module {
           .map { ($0["content"] as? String) ?? "" }
           .joined(separator: "\n")
 
-        let task = Task {
+        // Not tracked in activeStreamTasks: stopStreaming stops LiteRT-LM
+        // natively instead of cancelling this task (see cancelStream).
+        Task {
           do {
             try await self.gemmaClient.generateTextStream(
+              sessionId: sessionId,
               prompt: conversationPrompt,
               systemPrompt: baseSystemPrompt
             ) { token, accumulatedText, isDone in
@@ -480,13 +483,11 @@ public class ExpoAiKitModule: Module {
               "error": self.streamErrorContract(error, modelId: self.activeModelId)
             ])
           }
-          self.activeStreamTasks.removeValue(forKey: sessionId)
         }
-        self.activeStreamTasks[sessionId] = task
       }
     }
 
-    AsyncFunction("stopStreaming") { (sessionId: String) in
+    AsyncFunction("stopStreaming") { (sessionId: String) async in
       if let task = self.activeStreamTasks[sessionId] {
         task.cancel()
         self.activeStreamTasks.removeValue(forKey: sessionId)
@@ -495,6 +496,8 @@ public class ExpoAiKitModule: Module {
         task.cancel()
         self.activeSendTasks.removeValue(forKey: sessionId)
       }
+      // Stops the LiteRT-LM stream for `sessionId`; other sessions' streams are untouched.
+      await self.gemmaClient.cancelStream(sessionId: sessionId)
     }
 
 #else

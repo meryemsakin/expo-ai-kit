@@ -118,10 +118,16 @@ export type LLMStreamHandle = {
   /**
    * Resolves with the final text when streaming completes or is stopped.
    * Rejects with a ModelError when the stream fails (device or model
-   * unavailable, mid-stream native failure, unsupported platform).
+   * unavailable, mid-stream native failure, unsupported platform). If
+   * `onToken` throws, generation is stopped and `promise` rejects with that
+   * error.
    */
   promise: Promise<LLMResponse>;
-  /** Stop streaming. Resolves `promise` with the text accumulated so far. */
+  /**
+   * Stop streaming. Resolves `promise` with the text accumulated so far. A new
+   * generation rejects with INFERENCE_BUSY until the native model has actually
+   * stopped.
+   */
   stop: () => void;
 };
 

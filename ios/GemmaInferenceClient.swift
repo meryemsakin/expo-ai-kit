@@ -17,6 +17,14 @@ actor GemmaInferenceClient {
   // (qwen3: "string has no method named strip").
   private var conversationConfig: ConversationConfig?
 
+  // Native stop for the in-flight stream (see cancelStream). Streams run one at
+  // a time behind the JS single-flight guard.
+  private var activeStreamSessionId: String?
+  private var streamConversation: Conversation?
+  private var streamCancelRequested = false
+  // Stops that reached the actor before their stream did.
+  private var pendingStreamCancels: Set<String> = []
+
   private var isDownloading = false
   private var currentDownloader: ModelDownloader?
 
@@ -170,10 +178,25 @@ actor GemmaInferenceClient {
   /// LiteRT-LM may deliver each Message chunk as either an accumulated string
   /// or a delta, mirror Android's detection logic to handle both safely.
   func generateTextStream(
+    sessionId: String,
     prompt: String,
     systemPrompt: String,
     onChunk: @Sendable (_ token: String, _ accumulatedText: String, _ isDone: Bool) -> Void
   ) async throws {
+    // Any other pending id is stale: its stream already ended.
+    streamCancelRequested = pendingStreamCancels.contains(sessionId)
+    pendingStreamCancels.removeAll()
+    activeStreamSessionId = sessionId
+    defer {
+      activeStreamSessionId = nil
+      streamConversation = nil
+      streamCancelRequested = false
+    }
+    if streamCancelRequested {
+      onChunk("", "", true)
+      return
+    }
+
     let conv = try await freshConversation()
     let fullPrompt = buildFullPrompt(prompt: prompt, systemPrompt: systemPrompt)
 
@@ -182,11 +205,16 @@ actor GemmaInferenceClient {
 
     do {
       let stream = conv.sendMessageStream(Message(fullPrompt))
+      streamConversation = conv
+      // A stop that arrived while the conversation was being created.
+      if streamCancelRequested { try? conv.cancel() }
       for try await chunk in stream {
         if Task.isCancelled {
           try? conv.cancel()
           break
         }
+        // Stopped: keep draining until LiteRT-LM ends the stream, emit nothing.
+        if streamCancelRequested { continue }
 
         let chunkText = chunk.toString
         let token: String
@@ -203,6 +231,9 @@ actor GemmaInferenceClient {
         }
         onChunk(token, accumulated, false)
       }
+      // Task cancellation ends the iteration without waiting for a chunk; still
+      // ask LiteRT-LM to stop.
+      if Task.isCancelled { try? conv.cancel() }
       // Always emit a terminal chunk, including on cooperative cancellation,
       // so the JS stream settles instead of hanging.
       onChunk("", accumulated, true)
@@ -210,8 +241,28 @@ actor GemmaInferenceClient {
       try? conv.cancel()
       onChunk("", accumulated, true)
     } catch {
+      // cancel() ends the native stream with an error once decoding has
+      // stopped: that is the stop that was asked for, not a failure.
+      if streamCancelRequested {
+        onChunk("", accumulated, true)
+        return
+      }
       throw GemmaError.inferenceFailed(loadedModelId ?? "unknown", reason: "\(error)")
     }
+  }
+
+  /// Stop the stream for `sessionId` natively. Unlike cancelling the Swift task,
+  /// which ends iteration immediately, this keeps generateTextStream draining
+  /// until LiteRT-LM reports the stream ended, so the terminal event (which
+  /// releases the JS single-flight guard) is not sent while the model is still
+  /// decoding. A stop that arrives before its stream starts is remembered.
+  func cancelStream(sessionId: String) {
+    guard activeStreamSessionId == sessionId else {
+      pendingStreamCancels.insert(sessionId)
+      return
+    }
+    streamCancelRequested = true
+    try? streamConversation?.cancel()
   }
 
   private nonisolated func buildFullPrompt(prompt: String, systemPrompt: String) -> String {
