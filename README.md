@@ -105,7 +105,7 @@ const { width, height, faces } = await detectFaces({ uri: photo.uri });
 
 Enable `vision` on Android and rebuild, or name only the features you use, for example
 `{ "vision": ["face-detection"] }`, so the app ships only that detector. Face detection uses a
-bundled model and needs no download; rules such as "exactly one face" are a few lines in your app.
+bundled model and needs no download.
 
 ## Embeddings
 
