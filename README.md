@@ -1,11 +1,22 @@
 # expo-ai-kit
 
-**On-device AI for React Native.** Generate text, transcribe speech, work with images,
-and search by meaning. Supports Expo apps and React Native apps with Expo modules installed.
-Inference runs on the device, with no API key.
+[![npm version](https://img.shields.io/npm/v/expo-ai-kit.svg)](https://www.npmjs.com/package/expo-ai-kit)
+[![npm downloads](https://img.shields.io/npm/dm/expo-ai-kit.svg)](https://www.npmjs.com/package/expo-ai-kit)
+[![license](https://img.shields.io/npm/l/expo-ai-kit.svg)](./LICENSE)
+![platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-lightgrey.svg)
+
+**On-device AI for React Native.** Local LLM, speech-to-text, vision, and embeddings for Expo
+apps and React Native apps with Expo modules installed. No API keys, no cloud.
 
 [Documentation](https://expo-ai-kit.dev) · [Examples](https://expo-ai-kit.dev/examples) ·
 [npm](https://www.npmjs.com/package/expo-ai-kit) · [Changelog](./CHANGELOG.md)
+
+- **Private and offline.** Inference runs on the device. Prompts, audio, and images never leave it.
+- **No API key, no per-request cost.** Nothing to provision, meter, or proxy.
+- **One TypeScript API for both platforms.** Apple Foundation Models, Speech, and Vision on iOS;
+  ML Kit and MediaPipe on Android; LiteRT-LM for downloadable models such as Gemma, Qwen, and Phi.
+- **Pay only for what you use.** Every feature is opt-in, so unused native code, models, and
+  permissions never ship. Zero runtime JavaScript dependencies.
 
 ## Install
 
@@ -112,4 +123,4 @@ setup and every option in detail.
 - [Troubleshooting](https://expo-ai-kit.dev/troubleshooting) and [GitHub issues](https://github.com/saidkaban/expo-ai-kit/issues).
 - [llms.txt](https://expo-ai-kit.dev/llms.txt): documentation index and essential contracts for coding agents.
 
-Zero runtime JavaScript dependencies. MIT © [Said Kaban](https://github.com/saidkaban).
+MIT © [Said Kaban](https://github.com/saidkaban).
