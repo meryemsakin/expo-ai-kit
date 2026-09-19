@@ -24,8 +24,8 @@ apps and React Native apps with Expo modules installed. No API keys, no cloud.
 npx expo install expo-ai-kit
 ```
 
-**All features are off by default.** Nothing native is compiled into your app until you turn
-a feature on in your app config and make a native build. To use text generation:
+Turn on the features you use in your app config, then make a native build. Until you enable a
+feature, none of its native code is compiled into your app. To use text generation:
 
 ```json
 {
