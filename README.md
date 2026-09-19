@@ -68,6 +68,19 @@ Android may download its model during preparation. You can also
 [Generate and stream text](https://expo-ai-kit.dev/guides/llm),
 [return structured JSON](https://expo-ai-kit.dev/guides/structured-output), or
 [let the model call your functions](https://expo-ai-kit.dev/guides/tool-calling).
+Stream tokens into your UI as they arrive:
+
+```ts
+import { streamMessage } from 'expo-ai-kit';
+
+const { promise, stop } = streamMessage(
+  [{ role: 'user', content: 'Write a haiku about the sea.' }],
+  (event) => setText(event.accumulatedText)
+);
+
+await promise; // call stop() to cancel early
+```
+
 Pass the full message history on each call. One generation runs at a time. Enable the `llm`
 option and rebuild.
 
