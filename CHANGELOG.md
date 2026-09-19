@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.3
+
+### Changed
+
+- README: npm version, downloads, license, and platform badges; a short list of why to run AI on
+  the device; a `streamMessage` example in the LLM section. No code changes.
+
 ## 0.18.2
 
 ### Fixed
